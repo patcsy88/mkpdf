@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = ["crates/pdfkit-core", "crates/pdfkit-layout"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.80"
+
+[workspace.dependencies]
+krilla = "0.8"
+thiserror = "2"
+rustybuzz = "0.20"
+pdfkit-core = { path = "crates/pdfkit-core" }

@@ -1,0 +1,12 @@
+[package]
+name = "pdfkit-core"
+description = "Core PDF document model and writer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+krilla.workspace = true
+thiserror.workspace = true
+rustybuzz.workspace = true
