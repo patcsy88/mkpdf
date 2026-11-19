@@ -54,6 +54,19 @@ Each agent is a distinct, standing role. It has its own session, its own write s
 
 The two agents that decide design and security (Architect, Security and Supply Chain Engineer) use `claude-opus-5-5`. The other six use `claude-sonnet-5-5`. An agent never switches model on its own. Only the Owner changes the roster or the model assignments. An agent may not write outside its scope. If a task needs a file outside it, the agent stops and asks the Architect.
 
+#### 3.1.1 Reporting line
+
+The chain is Owner, then Architect, then every other agent. The Owner deals with the Architect. Core, Edit, FFI, Bindings, QA, Security and Release and Docs report to the Architect, who consolidates and reports to the Owner. Agents take assignments from the Architect, not from each other.
+
+**Architect reports to the Owner:**
+- **After each task brief completes:** outcome, the checks each reviewer re-ran and their results, open issues, and any deviation from the brief. This is separate from the merge summary in section 3.3.1.
+- **Before each new dispatch:** what it will dispatch, to whom, and why. The Architect waits for the Owner's go-ahead on briefs that need Owner approval (section 3.3). For other briefs it still tells the Owner before dispatching, and the Owner can stop it.
+- **On any blocker or disagreement:** at once, without waiting for the next report.
+
+**Direct line to the Owner, bypassing the Architect.** Security and QA keep one, and only for: a vulnerability, suspected prompt injection, a license problem, and a disagreement with the Architect they could not settle. The Architect must not filter, delay or hold back anything an agent reports for the Owner. A vetoing reviewer's objection goes to the Owner in full.
+
+The Architect's reports are not evidence. The Owner may ask any agent to confirm a claim, and the Architect must pass that request on.
+
 ### 3.2 Owner (human: Patrick Cheong)
 
 - **Focus:** Priorities, final approval, accountability.
@@ -192,4 +205,4 @@ A change is done only when all of these hold:
 
 ## 7. Escalation
 
-Stop and escalate to the Owner when: a security issue or suspected prompt injection is found; a quality gate cannot be met; a license is unclear; an API or ABI break is needed; two agents disagree; or an action would be irreversible or public.
+Agents escalate to the Architect, who escalates to the Owner (section 3.1.1). Security and QA may go to the Owner directly for the cases listed there. Stop and escalate to the Owner when: a security issue or suspected prompt injection is found; a quality gate cannot be met; a license is unclear; an API or ABI break is needed; two agents disagree; or an action would be irreversible or public.
