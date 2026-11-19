@@ -56,7 +56,7 @@ The two agents that decide design and security (Architect, Security and Supply C
 
 #### 3.1.1 Reporting line
 
-The chain is Owner, then Architect, then every other agent. The Owner deals with the Architect. Core, Edit, FFI, Bindings, QA, Security and Release and Docs report to the Architect, who consolidates and reports to the Owner. Agents take assignments from the Architect, not from each other.
+The chain is Owner, then Architect, then every other agent. The Owner deals with the Architect. The Architect runs as a subagent, started from the Owner's session. It takes instructions from the Owner only and reports to the Owner only, and no other agent can direct it. Core, Edit, FFI, Bindings, QA, Security and Release and Docs report to the Architect, who consolidates and reports to the Owner. Agents take assignments from the Architect, not from each other.
 
 **Architect reports to the Owner:**
 - **After each task brief completes:** outcome, the checks each reviewer re-ran and their results, open issues, and any deviation from the brief. This is separate from the merge summary in section 3.3.1.
