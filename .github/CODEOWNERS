@@ -1,0 +1,64 @@
+# Path ownership for mkpdf. See AGENTS.md section 3.1 for the agent roster.
+#
+# Every line currently names @patcsy88 because the agents have no GitHub
+# identities yet. The comment on each line says which agent owns the path.
+# To make this enforce separation of duties, give each agent its own GitHub
+# account (or bot) and replace the handle on its lines. Rules apply from top
+# to bottom and the LAST matching pattern wins, so later lines override
+# earlier ones.
+#
+# Review is only enforced when branch protection has "Require review from Code
+# Owners" turned on. Only the Owner can change that setting.
+
+# Owner: governance files
+/AGENTS.md                      @patcsy88
+/.github/CODEOWNERS             @patcsy88
+/LICENSE-APACHE                 @patcsy88
+/opencode.jsonc                 @patcsy88
+/.opencode/                     @patcsy88
+
+# Release and Docs Engineer
+/.github/                       @patcsy88
+/README.md                      @patcsy88
+/CHANGELOG.md                   @patcsy88
+/docs/                          @patcsy88
+/examples/                      @patcsy88
+
+# Architect
+/docs/adr/                      @patcsy88
+/docs/api/                      @patcsy88
+/docs/briefs/                   @patcsy88
+
+# Core Engineer
+/crates/mkpdf-core/             @patcsy88
+/crates/mkpdf-layout/           @patcsy88
+/crates/mkpdf-html/             @patcsy88
+
+# Edit Engineer
+/crates/mkpdf-edit/             @patcsy88
+
+# FFI Engineer
+/crates/mkpdf-ffi/              @patcsy88
+/include/                       @patcsy88
+
+# Bindings Engineer
+/bindings/                      @patcsy88
+
+# QA Engineer (overrides the crate rules above for test directories)
+/crates/*/tests/                @patcsy88
+/bindings/*/tests/              @patcsy88
+/testdata/                      @patcsy88
+
+# Security and Supply Chain Engineer (overrides everything above)
+# CI workflows need Security review. Dependency manifests and bundled
+# assets need Supply Chain review.
+/.github/workflows/             @patcsy88
+/fuzz/                          @patcsy88
+/docs/security/                 @patcsy88
+/deny.toml                      @patcsy88
+/NOTICE                         @patcsy88
+/Cargo.toml                     @patcsy88
+/Cargo.lock                     @patcsy88
+/crates/*/Cargo.toml            @patcsy88
+/bindings/**/Cargo.toml         @patcsy88
+/crates/*/fonts/                @patcsy88
