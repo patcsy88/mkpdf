@@ -1,10 +1,14 @@
 [package]
-name = "pdfkit-core"
+name = "mkpdf-core"
 description = "Core PDF document model and writer"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+
+[features]
+# Embeds the Roboto fonts (Apache-2.0, ~2 MB) and exposes Font::roboto_*.
+bundled-fonts = []
 
 [dependencies]
 krilla.workspace = true

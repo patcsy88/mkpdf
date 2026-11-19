@@ -1,4 +1,4 @@
-use pdfkit_core::{Document, Page, PageSize};
+use mkpdf_core::{Document, Page, PageSize};
 
 use crate::text::wrap;
 use crate::types::*;
@@ -17,7 +17,15 @@ pub struct Layout {
 
 impl Layout {
     pub fn new(doc: Document, size: PageSize, margins: Margins) -> Result<Self> {
-        let l = Self { doc, size, margins, page: None, y: margins.top, header: None, footer: None };
+        let l = Self {
+            doc,
+            size,
+            margins,
+            page: None,
+            y: margins.top,
+            header: None,
+            footer: None,
+        };
         if l.content_width() <= 0.0 || l.bottom() <= l.margins.top {
             return Err(Error::NoContentArea);
         }
@@ -57,7 +65,10 @@ impl Layout {
         if self.page.is_none() {
             self.new_page()?;
         }
-        Ok(self.doc.page_mut(self.page.unwrap()).expect("page index valid"))
+        Ok(self
+            .doc
+            .page_mut(self.page.unwrap())
+            .expect("page index valid"))
     }
 
     /// Ensure `h` points fit on the current page, starting a new page if not.
@@ -76,13 +87,19 @@ impl Layout {
 
     pub fn add(&mut self, block: Block) -> Result<()> {
         match block {
-            Block::Paragraph { text, style, align, space_after } => {
-                self.paragraph(&text, &style, align, space_after)
-            }
+            Block::Paragraph {
+                text,
+                style,
+                align,
+                space_after,
+            } => self.paragraph(&text, &style, align, space_after),
             Block::Table(t) => self.table(&t),
-            Block::Image { image, width, align, space_after } => {
-                self.image(&image, width, align, space_after)
-            }
+            Block::Image {
+                image,
+                width,
+                align,
+                space_after,
+            } => self.image(&image, width, align, space_after),
             Block::Spacer(h) => {
                 self.page()?;
                 self.y += h;
@@ -95,7 +112,13 @@ impl Layout {
         }
     }
 
-    fn paragraph(&mut self, text: &str, style: &TextStyle, align: Align, space_after: f32) -> Result<()> {
+    fn paragraph(
+        &mut self,
+        text: &str,
+        style: &TextStyle,
+        align: Align,
+        space_after: f32,
+    ) -> Result<()> {
         let lh = style.size * style.line_height;
         let lines = wrap(text, &style.font, style.size, self.content_width());
         let x0 = self.margins.left;
@@ -110,7 +133,8 @@ impl Layout {
             let x = aligned_x(x0, cw, w, align);
             let baseline = y + (lh - (asc + desc)) / 2.0 + asc;
             if !line.is_empty() {
-                self.page()?.draw_text(x, baseline, &style.font, style.size, style.color, &line);
+                self.page()?
+                    .draw_text(x, baseline, &style.font, style.size, style.color, &line);
             }
             self.y += lh;
         }
@@ -118,7 +142,13 @@ impl Layout {
         Ok(())
     }
 
-    fn image(&mut self, image: &pdfkit_core::Image, width: Option<f32>, align: Align, space_after: f32) -> Result<()> {
+    fn image(
+        &mut self,
+        image: &mkpdf_core::Image,
+        width: Option<f32>,
+        align: Align,
+        space_after: f32,
+    ) -> Result<()> {
         let (pw, ph) = image.size();
         if pw == 0 || ph == 0 {
             return Ok(());
@@ -145,7 +175,11 @@ impl Layout {
         }
         for (i, r) in t.header.iter().chain(t.rows.iter()).enumerate() {
             if r.len() != t.columns.len() {
-                return Err(Error::ColumnMismatch { row: i, got: r.len(), expected: t.columns.len() });
+                return Err(Error::ColumnMismatch {
+                    row: i,
+                    got: r.len(),
+                    expected: t.columns.len(),
+                });
             }
         }
         let widths = column_widths(&t.columns, self.content_width());
@@ -208,7 +242,11 @@ impl Layout {
         }
         let total = self.doc.page_count();
         for i in 0..total {
-            let info = PageInfo { number: i + 1, total, size: self.size };
+            let info = PageInfo {
+                number: i + 1,
+                total,
+                size: self.size,
+            };
             let page = self.doc.page_mut(i).expect("page index valid");
             if let Some(f) = &self.header {
                 f(page, info, &self.margins);
@@ -230,8 +268,26 @@ fn aligned_x(x0: f32, width: f32, content: f32, align: Align) -> f32 {
 }
 
 fn column_widths(cols: &[Column], total: f32) -> Vec<f32> {
-    let fixed: f32 = cols.iter().filter_map(|c| if let Column::Fixed(w) = c { Some(*w) } else { None }).sum();
-    let weights: f32 = cols.iter().filter_map(|c| if let Column::Weight(w) = c { Some(*w) } else { None }).sum();
+    let fixed: f32 = cols
+        .iter()
+        .filter_map(|c| {
+            if let Column::Fixed(w) = c {
+                Some(*w)
+            } else {
+                None
+            }
+        })
+        .sum();
+    let weights: f32 = cols
+        .iter()
+        .filter_map(|c| {
+            if let Column::Weight(w) = c {
+                Some(*w)
+            } else {
+                None
+            }
+        })
+        .sum();
     let rest = (total - fixed).max(0.0);
     cols.iter()
         .map(|c| match c {
@@ -248,7 +304,9 @@ fn row_height(row: &Row, widths: &[f32], t: &Table) -> f32 {
         .map(|(cell, &w)| {
             let style = cell.style.as_ref().unwrap_or(&t.style);
             let inner = (w - 2.0 * t.padding).max(1.0);
-            let n = wrap(&cell.text, &style.font, style.size, inner).len().max(1);
+            let n = wrap(&cell.text, &style.font, style.size, inner)
+                .len()
+                .max(1);
             n as f32 * style.size * style.line_height + 2.0 * t.padding
         })
         .fold(0.0, f32::max)

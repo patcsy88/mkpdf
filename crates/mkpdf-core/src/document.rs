@@ -13,15 +13,24 @@ pub struct PageSize {
 }
 
 impl PageSize {
-    pub const A4: PageSize = PageSize { width: 595.28, height: 841.89 };
-    pub const LETTER: PageSize = PageSize { width: 612.0, height: 792.0 };
+    pub const A4: PageSize = PageSize {
+        width: 595.28,
+        height: 841.89,
+    };
+    pub const LETTER: PageSize = PageSize {
+        width: 612.0,
+        height: 792.0,
+    };
 
     pub const fn new(width: f32, height: f32) -> Self {
         Self { width, height }
     }
 
     pub fn landscape(self) -> Self {
-        Self { width: self.height, height: self.width }
+        Self {
+            width: self.height,
+            height: self.width,
+        }
     }
 }
 
@@ -36,10 +45,37 @@ pub struct Metadata {
 }
 
 enum Op {
-    Text { x: f32, y: f32, font: Font, size: f32, color: Color, text: String },
-    Rect { x: f32, y: f32, w: f32, h: f32, fill: Option<Color>, stroke: Option<(Color, f32)> },
-    Line { x1: f32, y1: f32, x2: f32, y2: f32, color: Color, width: f32 },
-    Image { x: f32, y: f32, w: f32, h: f32, image: Image },
+    Text {
+        x: f32,
+        y: f32,
+        font: Font,
+        size: f32,
+        color: Color,
+        text: String,
+    },
+    Rect {
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        fill: Option<Color>,
+        stroke: Option<(Color, f32)>,
+    },
+    Line {
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        color: Color,
+        width: f32,
+    },
+    Image {
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        image: Image,
+    },
 }
 
 /// A page is a list of drawing operations. The origin is the top-left corner and
@@ -56,23 +92,57 @@ impl Page {
 
     /// `y` is the text baseline.
     pub fn draw_text(&mut self, x: f32, y: f32, font: &Font, size: f32, color: Color, text: &str) {
-        self.ops.push(Op::Text { x, y, font: font.clone(), size, color, text: text.to_owned() });
+        self.ops.push(Op::Text {
+            x,
+            y,
+            font: font.clone(),
+            size,
+            color,
+            text: text.to_owned(),
+        });
     }
 
     pub fn fill_rect(&mut self, x: f32, y: f32, w: f32, h: f32, color: Color) {
-        self.ops.push(Op::Rect { x, y, w, h, fill: Some(color), stroke: None });
+        self.ops.push(Op::Rect {
+            x,
+            y,
+            w,
+            h,
+            fill: Some(color),
+            stroke: None,
+        });
     }
 
     pub fn stroke_rect(&mut self, x: f32, y: f32, w: f32, h: f32, color: Color, width: f32) {
-        self.ops.push(Op::Rect { x, y, w, h, fill: None, stroke: Some((color, width)) });
+        self.ops.push(Op::Rect {
+            x,
+            y,
+            w,
+            h,
+            fill: None,
+            stroke: Some((color, width)),
+        });
     }
 
     pub fn draw_line(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, color: Color, width: f32) {
-        self.ops.push(Op::Line { x1, y1, x2, y2, color, width });
+        self.ops.push(Op::Line {
+            x1,
+            y1,
+            x2,
+            y2,
+            color,
+            width,
+        });
     }
 
     pub fn draw_image(&mut self, x: f32, y: f32, w: f32, h: f32, image: &Image) {
-        self.ops.push(Op::Image { x, y, w, h, image: image.clone() });
+        self.ops.push(Op::Image {
+            x,
+            y,
+            w,
+            h,
+            image: image.clone(),
+        });
     }
 }
 
@@ -96,10 +166,20 @@ impl Document {
     }
 
     pub fn add_page(&mut self, size: PageSize) -> Result<&mut Page> {
-        if !(size.width > 0.0 && size.height > 0.0 && size.width.is_finite() && size.height.is_finite()) {
-            return Err(Error::InvalidPageSize { width: size.width, height: size.height });
+        if !(size.width > 0.0
+            && size.height > 0.0
+            && size.width.is_finite()
+            && size.height.is_finite())
+        {
+            return Err(Error::InvalidPageSize {
+                width: size.width,
+                height: size.height,
+            });
         }
-        self.pages.push(Page { size, ops: Vec::new() });
+        self.pages.push(Page {
+            size,
+            ops: Vec::new(),
+        });
         Ok(self.pages.last_mut().expect("just pushed"))
     }
 
@@ -112,8 +192,12 @@ impl Document {
         doc.set_metadata(build_metadata(&self.metadata));
 
         for page in &self.pages {
-            let settings = PageSettings::from_wh(page.size.width, page.size.height)
-                .ok_or(Error::InvalidPageSize { width: page.size.width, height: page.size.height })?;
+            let settings = PageSettings::from_wh(page.size.width, page.size.height).ok_or(
+                Error::InvalidPageSize {
+                    width: page.size.width,
+                    height: page.size.height,
+                },
+            )?;
             let mut kpage = doc.start_page_with(settings);
             let mut surface = kpage.surface();
             for op in &page.ops {
@@ -151,21 +235,50 @@ fn build_metadata(m: &Metadata) -> krilla::metadata::Metadata {
 }
 
 fn fill(color: Color) -> Fill {
-    Fill { paint: color.to_krilla().into(), opacity: NormalizedF32::ONE, rule: Default::default() }
+    Fill {
+        paint: color.to_krilla().into(),
+        opacity: NormalizedF32::ONE,
+        rule: Default::default(),
+    }
 }
 
 fn stroke(color: Color, width: f32) -> Stroke {
-    Stroke { paint: color.to_krilla().into(), width, ..Default::default() }
+    Stroke {
+        paint: color.to_krilla().into(),
+        width,
+        ..Default::default()
+    }
 }
 
 fn render_op(s: &mut krilla::surface::Surface<'_>, op: &Op) -> Result<()> {
     match op {
-        Op::Text { x, y, font, size, color, text } => {
+        Op::Text {
+            x,
+            y,
+            font,
+            size,
+            color,
+            text,
+        } => {
             s.set_fill(Some(fill(*color)));
             s.set_stroke(None);
-            s.draw_text(Point::from_xy(*x, *y), font.inner.clone(), *size, text, false, TextDirection::Auto);
+            s.draw_text(
+                Point::from_xy(*x, *y),
+                font.inner.clone(),
+                *size,
+                text,
+                false,
+                TextDirection::Auto,
+            );
         }
-        Op::Rect { x, y, w, h, fill: f, stroke: st } => {
+        Op::Rect {
+            x,
+            y,
+            w,
+            h,
+            fill: f,
+            stroke: st,
+        } => {
             let rect = Rect::from_xywh(*x, *y, *w, *h).ok_or(Error::InvalidGeometry)?;
             let mut pb = PathBuilder::new();
             pb.push_rect(rect);
@@ -174,7 +287,14 @@ fn render_op(s: &mut krilla::surface::Surface<'_>, op: &Op) -> Result<()> {
             s.set_stroke(st.map(|(c, w)| stroke(c, w)));
             s.draw_path(&path);
         }
-        Op::Line { x1, y1, x2, y2, color, width } => {
+        Op::Line {
+            x1,
+            y1,
+            x2,
+            y2,
+            color,
+            width,
+        } => {
             let mut pb = PathBuilder::new();
             pb.move_to(*x1, *y1);
             pb.line_to(*x2, *y2);

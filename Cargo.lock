@@ -280,6 +280,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "mkpdf-core"
+version = "0.1.0"
+dependencies = [
+ "krilla",
+ "rustybuzz",
+ "thiserror",
+]
+
+[[package]]
+name = "mkpdf-layout"
+version = "0.1.0"
+dependencies = [
+ "mkpdf-core",
+ "thiserror",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -298,23 +315,6 @@ dependencies = [
  "itoa",
  "memchr",
  "ryu",
-]
-
-[[package]]
-name = "pdfkit-core"
-version = "0.1.0"
-dependencies = [
- "krilla",
- "rustybuzz",
- "thiserror",
-]
-
-[[package]]
-name = "pdfkit-layout"
-version = "0.1.0"
-dependencies = [
- "pdfkit-core",
- "thiserror",
 ]
 
 [[package]]

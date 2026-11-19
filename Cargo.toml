@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/pdfkit-core", "crates/pdfkit-layout"]
+members = ["crates/mkpdf-core", "crates/mkpdf-layout"]
 
 [workspace.package]
 version = "0.1.0"
@@ -12,4 +12,4 @@ rust-version = "1.80"
 krilla = "0.8"
 thiserror = "2"
 rustybuzz = "0.20"
-pdfkit-core = { path = "crates/pdfkit-core" }
+mkpdf-core = { path = "crates/mkpdf-core" }

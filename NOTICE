@@ -1,0 +1,15 @@
+mkpdf
+Copyright 2026 Patrick Cheong
+
+This product includes software developed by Patrick Cheong
+(https://github.com/patcsy88/mkpdf), licensed under the Apache License,
+Version 2.0.
+
+Bundled third-party components
+------------------------------
+
+Roboto fonts (crates/mkpdf-core/fonts/Roboto-*.ttf)
+  Copyright 2011 Google Inc. All Rights Reserved.
+  Licensed under the Apache License, Version 2.0.
+  https://github.com/googlefonts/roboto
+  License text: crates/mkpdf-core/fonts/LICENSE-Roboto

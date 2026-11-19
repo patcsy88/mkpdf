@@ -1,4 +1,4 @@
-use pdfkit_core::{Color, Document, Error, Font, Image, Metadata, PageSize};
+use mkpdf_core::{Color, Document, Error, Font, Image, Metadata, PageSize};
 
 const PNG_1X1: &[u8] = &[
     0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
@@ -11,7 +11,10 @@ const PNG_1X1: &[u8] = &[
 #[test]
 fn shapes_image_and_metadata() {
     let mut doc = Document::new();
-    doc.set_metadata(Metadata { title: Some("Smoke".into()), ..Default::default() });
+    doc.set_metadata(Metadata {
+        title: Some("Smoke".into()),
+        ..Default::default()
+    });
     let page = doc.add_page(PageSize::A4).unwrap();
     page.fill_rect(50.0, 50.0, 200.0, 40.0, Color::rgb(200, 30, 30));
     page.stroke_rect(50.0, 100.0, 200.0, 40.0, Color::BLACK, 1.0);
@@ -25,17 +28,26 @@ fn shapes_image_and_metadata() {
 
 #[test]
 fn rejects_bad_input() {
-    assert!(matches!(Font::from_bytes(vec![1, 2, 3]), Err(Error::InvalidFont)));
-    assert!(matches!(Image::from_bytes(vec![1, 2, 3]), Err(Error::UnsupportedImageFormat)));
+    assert!(matches!(
+        Font::from_bytes(vec![1, 2, 3]),
+        Err(Error::InvalidFont)
+    ));
+    assert!(matches!(
+        Image::from_bytes(vec![1, 2, 3]),
+        Err(Error::UnsupportedImageFormat)
+    ));
     let mut doc = Document::new();
-    assert!(matches!(doc.add_page(PageSize::new(0.0, 10.0)), Err(Error::InvalidPageSize { .. })));
+    assert!(matches!(
+        doc.add_page(PageSize::new(0.0, 10.0)),
+        Err(Error::InvalidPageSize { .. })
+    ));
 }
 
 #[test]
-fn text_with_system_font() {
-    let path = "/System/Library/Fonts/Supplemental/Arial.ttf";
-    let Ok(data) = std::fs::read(path) else { return };
-    let font = Font::from_bytes(data).unwrap();
+fn text_with_bundled_font() {
+    let font = Font::from_bytes(include_bytes!("../fonts/Roboto-Regular.ttf").to_vec()).unwrap();
+    assert!(font.measure("Hello, PDF", 18.0) > 50.0);
+    assert!(font.ascent(18.0) > 0.0 && font.descent(18.0) > 0.0);
     let mut doc = Document::new();
     let page = doc.add_page(PageSize::LETTER).unwrap();
     page.draw_text(72.0, 100.0, &font, 18.0, Color::BLACK, "Hello, PDF");

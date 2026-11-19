@@ -1,4 +1,4 @@
-use pdfkit_core::{Color, Font, Image, PageSize};
+use mkpdf_core::{Color, Font, Image, PageSize};
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -6,9 +6,13 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    Core(#[from] pdfkit_core::Error),
+    Core(#[from] mkpdf_core::Error),
     #[error("table row {row} has {got} cells but the table has {expected} columns")]
-    ColumnMismatch { row: usize, got: usize, expected: usize },
+    ColumnMismatch {
+        row: usize,
+        got: usize,
+        expected: usize,
+    },
     #[error("table has no columns")]
     EmptyTable,
     #[error("page content area is too small for the given margins")]
@@ -33,7 +37,12 @@ pub struct Margins {
 
 impl Margins {
     pub const fn all(v: f32) -> Self {
-        Self { top: v, right: v, bottom: v, left: v }
+        Self {
+            top: v,
+            right: v,
+            bottom: v,
+            left: v,
+        }
     }
 }
 
@@ -48,7 +57,12 @@ pub struct TextStyle {
 
 impl TextStyle {
     pub fn new(font: Font, size: f32) -> Self {
-        Self { font, size, color: Color::BLACK, line_height: 1.3 }
+        Self {
+            font,
+            size,
+            color: Color::BLACK,
+            line_height: 1.3,
+        }
     }
 
     pub fn color(mut self, color: Color) -> Self {
@@ -80,7 +94,12 @@ pub struct Cell {
 
 impl Cell {
     pub fn new(text: impl Into<String>) -> Self {
-        Self { text: text.into(), style: None, align: Align::Left, background: None }
+        Self {
+            text: text.into(),
+            style: None,
+            align: Align::Left,
+            background: None,
+        }
     }
 
     pub fn align(mut self, align: Align) -> Self {
@@ -127,17 +146,32 @@ impl Table {
 
 #[derive(Clone)]
 pub enum Block {
-    Paragraph { text: String, style: TextStyle, align: Align, space_after: f32 },
+    Paragraph {
+        text: String,
+        style: TextStyle,
+        align: Align,
+        space_after: f32,
+    },
     Table(Table),
     /// `width` in points; defaults to the image's pixel width, capped to the content width.
-    Image { image: Image, width: Option<f32>, align: Align, space_after: f32 },
+    Image {
+        image: Image,
+        width: Option<f32>,
+        align: Align,
+        space_after: f32,
+    },
     Spacer(f32),
     PageBreak,
 }
 
 impl Block {
     pub fn paragraph(text: impl Into<String>, style: TextStyle) -> Self {
-        Block::Paragraph { text: text.into(), style, align: Align::Left, space_after: 6.0 }
+        Block::Paragraph {
+            text: text.into(),
+            style,
+            align: Align::Left,
+            space_after: 6.0,
+        }
     }
 }
 

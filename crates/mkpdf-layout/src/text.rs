@@ -1,4 +1,4 @@
-use pdfkit_core::Font;
+use mkpdf_core::Font;
 
 /// Greedy word wrap. Honors `\n`; words wider than `max` are split by character.
 pub fn wrap(text: &str, font: &Font, size: f32, max: f32) -> Vec<String> {

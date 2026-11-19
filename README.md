@@ -8,8 +8,8 @@ A Rust library for creating PDFs, intended to be callable from Rust, .NET, Java,
 
 | Crate | Purpose |
 |---|---|
-| `pdfkit-core` | Document model: pages, text with embedded custom fonts, shapes, images (PNG, JPEG, GIF, WebP), metadata. Built on [`krilla`](https://crates.io/crates/krilla). |
-| `pdfkit-layout` | Flow layout: word-wrapped paragraphs, tables with repeating headers, images, automatic page breaks, headers and footers with page numbers. |
+| `mkpdf-core` | Document model: pages, text with embedded custom fonts, shapes, images (PNG, JPEG, GIF, WebP), metadata. Built on [`krilla`](https://crates.io/crates/krilla). |
+| `mkpdf-layout` | Flow layout: word-wrapped paragraphs, tables with repeating headers, images, automatic page breaks, headers and footers with page numbers. |
 
 ## Planned
 
@@ -20,7 +20,9 @@ A Rust library for creating PDFs, intended to be callable from Rust, .NET, Java,
 
 ## Licensing
 
-mkpdf is licensed under the Apache License 2.0 (see `LICENSE-APACHE`).
+mkpdf is licensed under the Apache License 2.0 (see `LICENSE-APACHE` and `NOTICE`).
+
+The optional `bundled-fonts` feature of `mkpdf-core` embeds the Roboto fonts (Apache-2.0, Google). Its license text is in `crates/mkpdf-core/fonts/LICENSE-Roboto`.
 
 All dependencies must use permissive licenses (MIT, Apache-2.0, BSD, ISC, Zlib, Unicode and similar). This is enforced with [`cargo-deny`](https://github.com/EmbarkStudios/cargo-deny):
 
