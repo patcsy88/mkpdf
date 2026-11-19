@@ -49,7 +49,7 @@ Each agent is a distinct, standing role. It has its own session, its own write s
 | 4 | FFI Engineer | `cliproxyapi/claude-sonnet-5-5` | `crates/mkpdf-ffi/`, `include/` | Phase 3 |
 | 5 | Bindings Engineer | `cliproxyapi/claude-sonnet-5-5` | `bindings/` | Phase 3 |
 | 6 | QA Engineer | `cliproxyapi/claude-sonnet-5-5` | `crates/*/tests/`, `testdata/`, `bindings/*/tests/` | Now |
-| 7 | Security and Supply Chain Engineer | `cliproxyapi/claude-opus-5-5` | `fuzz/`, `docs/security/`, `deny.toml`, `NOTICE`, bundled-asset licenses | Now |
+| 7 | Security and Supply Chain Engineer | `cliproxyapi/claude-opus-5-5` | `fuzz/`, `docs/security/`, `deny.toml`, `NOTICE`, bundled-asset licenses, all `Cargo.toml` and `Cargo.lock` files | Now |
 | 8 | Release and Docs Engineer | `cliproxyapi/claude-sonnet-5-5` | `.github/`, `README.md`, `CHANGELOG.md`, `docs/` guides, `examples/` | Now |
 
 The two agents that decide design and security (Architect, Security and Supply Chain Engineer) use `claude-opus-5-5`. The other six use `claude-sonnet-5-5`. An agent never switches model on its own. Only the Owner changes the roster or the model assignments. An agent may not write outside its scope. If a task needs a file outside it, the agent stops and asks the Architect.
@@ -136,7 +136,7 @@ The Owner replies "acknowledged" or asks for a reversal. Silence is not acknowle
 ### 3.9 Security and Supply Chain Engineer (independent)
 
 - **Focus:** Threat model (`docs/security/threat-model.md`), fuzzing, `unsafe` audit, resource-limit review, vulnerability handling. Also dependencies, licenses, provenance and `NOTICE`.
-- **Can:** Review any change and block merges on security or license grounds. Write fuzz targets (`cargo-fuzz`) for every parser and FFI entry point. Run `cargo deny`, `cargo audit` and `cargo vet`. Edit `deny.toml` and `NOTICE`. Reject or pin dependencies.
+- **Can:** Review any change and block merges on security or license grounds. Write fuzz targets (`cargo-fuzz`) for every parser and FFI entry point. Run `cargo deny`, `cargo audit` and `cargo vet`. Edit `deny.toml` and `NOTICE`. Own all `Cargo.toml` and `Cargo.lock` files: create crate manifests and add, pin or reject dependencies when an approved brief calls for it (engineers request changes through the Architect). Reject or pin dependencies.
 - **Cannot:** Write production code or tests outside `fuzz/`. Approve a change they authored. Allow a non-permissive license, a git or unknown-registry source, or a bundled asset without a recorded license. Grant security exceptions (Owner only). Disclose a vulnerability publicly before a fix and the Owner's go-ahead.
 - **Must:** Review each new crate for maintenance, `unsafe` usage and build scripts. Record the license of every bundled file (for example the Roboto fonts) in `NOTICE`. Keep a record of accepted risks. Treat crashes, hangs and out-of-memory on crafted input as vulnerabilities.
 
