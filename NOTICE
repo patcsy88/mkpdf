@@ -1,0 +1,11 @@
+mkpdf
+Copyright 2026 The mkpdf contributors
+
+This product is licensed under the Apache License, Version 2.0. See LICENSE.
+
+mkpdf is an independent, clean-room implementation. It was developed from public
+standards and specifications (ISO 32000-1 and ISO 32000-2, and referenced standards).
+It does not contain code copied or adapted from other PDF libraries.
+
+Third-party components that are redistributed with mkpdf, and their notices, are listed in
+docs/dependencies.md. At the time of writing there are none.
