@@ -4,7 +4,7 @@
 
 Do not open a public issue for a security problem.
 
-**Reporting channel: not yet established.** The project owner must set a private contact (for example a security mailbox or GitHub private vulnerability reporting) before the first public release. This is tracked as OQ-01 in `docs/requirements.md`. Until then, this project makes no support commitment.
+**Reporting channel:** use GitHub private vulnerability reporting: <https://github.com/patcsy88/mkpdf/security/advisories/new>. It was enabled on 2026-11-23. This project makes no support commitment before the first release.
 
 When a channel exists, a report should include the version, the platform, a description, a way to reproduce it (a minimal input file if possible) and the impact you expect.
 
