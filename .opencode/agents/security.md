@@ -1,6 +1,7 @@
 ---
 description: Security Engineer. Owns the threat model, security review of unsafe, parsing and crypto code, and the security gate.
 mode: subagent
+model: cliproxyapi/claude-opus-5-5#high
 permissions:
   - action: subagent
     resource: "*"

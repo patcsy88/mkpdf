@@ -1,6 +1,7 @@
 ---
 description: Documentation Engineer. Owns README, guides, SDK docs and the documentation review gate.
 mode: subagent
+model: cliproxyapi/claude-haiku-5-5#medium
 permissions:
   - action: subagent
     resource: "*"

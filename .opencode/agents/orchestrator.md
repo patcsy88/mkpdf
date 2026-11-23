@@ -29,6 +29,9 @@ permissions:
   - action: subagent
     resource: "docs"
     effect: allow
+  - action: subagent
+    resource: "risk-reviewer"
+    effect: allow
   - action: edit
     resource: "docs/roadmap.md"
     effect: allow

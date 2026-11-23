@@ -32,7 +32,18 @@ Owns pages and metadata.
 ## Guarantees
 
 - No panics on invalid input. No `unsafe`. No I/O.
-- `Document` is `Send` and `Sync` automatically, since it contains only owned data.
+- `Document` contains only owned data (`Option<String>`, `Vec<Page>`), so the compiler makes it `Send` and `Sync`. No test asserts this.
+
+## Derived traits
+
+| Type | Traits |
+|---|---|
+| `Document` | `Debug`, `Clone`, `Default`, `PartialEq` |
+| `Page` | `Debug`, `Clone`, `PartialEq` |
+| `Error` | `Debug`, `Clone`, `PartialEq`, `Eq`, plus `Display` and `std::error::Error` |
+| `ErrorKind` | `Debug`, `Clone`, `Copy`, `PartialEq`, `Eq` (`#[non_exhaustive]`) |
+
+Adding or removing a derive on a public type is an API change.
 
 ## Planned (not implemented)
 

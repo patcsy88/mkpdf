@@ -12,7 +12,12 @@ Statuses: Proposed, Accepted, Superseded, Rejected. All ADRs below are **Propose
 | [0004](0004-abi-and-api-versioning.md) | ABI and API versioning | Proposed |
 | [0005](0005-dependency-policy.md) | Dependency allowlist policy | Proposed (owner decision D-03) |
 | [0006](0006-pdf-version-strategy.md) | PDF 1.7 and 2.0 strategy | Proposed |
-| [0007](0007-determinism.md) | Deterministic output | Proposed |
+| [0007](0007-determinism.md) | Deterministic output | Proposed (updated for owner decision D-12: deterministic by default, timestamps and IDs opt-in) |
 | [0008](0008-error-model.md) | Error model | Proposed |
 | [0009](0009-wasm-and-no-io-core.md) | No-I/O core and WebAssembly | Proposed |
 | [0010](0010-sdks-consume-c-abi.md) | SDKs consume the C ABI only | Proposed |
+| [0011](0011-panic-strategy.md) | Panic strategy (`unwind` or `abort`), resolves OQ-12 | Proposed (recommends `unwind`, pinned and enforced) |
+| [0012](0012-output-buffer-ownership.md) | Output-buffer ownership across the C ABI, resolves OQ-13 | Proposed (recommends a library-allocated buffer with `mkpdf_buffer_free`) |
+| [0013](0013-generation-checked-handles.md) | Generation-checked handles (owner decisions D-08, D-11; backlog FFI-003), amends ADR-0003 | Proposed (open points for the owner are marked NOT DECIDED inside) |
+
+ADR-0013 must be accepted before FFI-001 starts. A resource-limits ADR is listed in `docs/requirements.md` ("Architectural decisions identified") and does not exist.

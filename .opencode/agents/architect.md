@@ -1,6 +1,7 @@
 ---
 description: Solution Architect. Owns architecture, component boundaries, ADRs and API contracts.
 mode: subagent
+model: cliproxyapi/claude-opus-5-5#high
 permissions:
   - action: subagent
     resource: "*"
@@ -16,6 +17,12 @@ permissions:
     effect: allow
   - action: edit
     resource: "docs/api/**"
+    effect: allow
+  - action: edit
+    resource: "docs/reviews/gate-*-architecture.md"
+    effect: allow
+  - action: edit
+    resource: "docs/reviews/ffi-code-review-*.md"
     effect: allow
   - action: edit
     resource: "rules/architecture.md"

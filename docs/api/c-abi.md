@@ -6,7 +6,8 @@ Status: draft. ABI version 0.1. **Not stable.** The ABI is frozen at v1.0.0 (ADR
 
 - Names start with `mkpdf_`. Types start with `Mkpdf`.
 - Functions that can fail return `int32_t` status. `0` means success. Results come back through out-parameters.
-- Strings are UTF-8, given as `(const char *ptr, size_t len)`. No NUL terminator is needed. `ptr` may be `NULL` only when `len` is 0.
+- Strings that the caller passes in are UTF-8, given as `(const char *ptr, size_t len)`. No NUL terminator is needed. `ptr` may be `NULL` only when `len` is 0.
+- Strings that the library returns (`mkpdf_version`, `mkpdf_last_error_message`) are the exception: they are NUL-terminated, with no length. The error text has any NUL byte in the original message replaced by `?`.
 - Sizes are `size_t`, lengths in points are `double`.
 
 ## Ownership
@@ -38,11 +39,17 @@ Values never change after release.
 | 4 | `MKPDF_ERR_LIMIT_EXCEEDED` | A documented resource limit was exceeded |
 | 100 | `MKPDF_ERR_INTERNAL` | A panic was caught at the boundary. This is a library bug |
 
-A successful call clears the thread's error text. A failing call sets it.
+A successful call to a function that returns a status clears the thread's error text, and a failing one sets it. The other functions (`mkpdf_abi_version`, `mkpdf_version`, `mkpdf_last_error_message`, `mkpdf_document_free`) neither set nor clear it.
 
 ## Panics
 
-No panic crosses the boundary. Each exported function catches it, records the message and returns `MKPDF_ERR_INTERNAL`. `mkpdf_document_free` also catches panics and returns nothing.
+No panic crosses the boundary. The status-returning functions run inside the `guard` helper, which catches a panic, records the message and returns `MKPDF_ERR_INTERNAL`. Four functions do not use `guard`, because they have no status to return or cannot fail:
+
+- `mkpdf_abi_version` and `mkpdf_version` return a constant and contain no code that can panic.
+- `mkpdf_last_error_message` wraps its body in `catch_unwind` and returns `NULL` if that catches a panic.
+- `mkpdf_document_free` wraps the release in `catch_unwind`, returns nothing, and sets no error text. A caught panic is ignored and the memory may leak.
+
+This catching relies on the `panic = "unwind"` setting. It is not yet pinned or checked, and a build with `panic = "abort"` would abort the process instead (ADR-0011, Proposed). Out-of-memory and stack overflow abort the process in either mode. `rules/rust-engineering.md` item 5 says every exported function goes through `guard`, which the code does not do for these four functions (review finding ARCH-F-09).
 
 ## Functions (ABI 0.1)
 

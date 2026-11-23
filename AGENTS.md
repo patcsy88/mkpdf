@@ -40,7 +40,7 @@ cargo deny check
 
 ## Agents
 
-Defined in `.opencode/agents/`. Nine roles: `orchestrator`, `architect`, `pdf-standards`, `rust-core`, `interop`, `qa`, `security`, `devops`, `docs`. Each file states responsibilities, scope, permissions, deliverables, quality requirements and escalation rules.
+Defined in `.opencode/agents/`. Ten roles: the nine required by the project brief (`orchestrator`, `architect`, `pdf-standards`, `rust-core`, `interop`, `qa`, `security`, `devops`, `docs`) plus `risk-reviewer`, added by the project owner on 2026-11-23 (OQ-14). The Risk Reviewer is an independent second reviewer that challenges other agents' evidence and keeps the risk register in `docs/risk/`. Each file states responsibilities, scope, permissions, deliverables, quality requirements and escalation rules.
 
 ## Gates
 

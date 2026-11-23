@@ -13,13 +13,25 @@ Source: the project brief. This document records the decisions taken and the ope
 | D-05 | Release progression | The owner's six releases, kept as proposed (docs/roadmap.md) |
 | D-06 | Go SDK | Added to v0.2.0 through CGo over the C ABI. gRPC is not used for Go |
 | D-07 | Resolution of OQ-01 to OQ-09 | The recommendations were accepted. See the table below. Items marked "action pending" are not finished |
+| D-08 | Handle safety (SEC-F-04) | Build generation-checked handles, so a double free or use after free is detected and returns an error and not undefined behaviour. This amends ADR-0003 and changes the ABI. It needs a new ADR, and the work comes before FFI-001 (backlog item FFI-003). The ABI is 0.x, so the change is allowed now |
+| D-09 | Risk Reviewer agent | Approved on 2026-11-23 as a tenth agent (OQ-14). It also reviews GATE-1 as the independent second reviewer. It never accepts a risk |
+| D-10 | Push timing | Push the CI toolchain fix and the SEC-F-01/02 fixes after the Security Engineer's re-review is in. Commit in logical groups with `-s`. Push only when the owner says "push" for each push, unless the owner states otherwise (2026-11-23: "push after the re-review") |
+| D-11 | Handle table design (FFI-003) | Table indices with a generation counter, so a forged or stale handle is never dereferenced. The architect writes the ADR before FFI-001. The ADR stays Proposed until the owner accepts it |
+| D-13 | Handle token type (ADR-0013 point 1) | `uint64_t` token, not a fake pointer. Token 0 is never valid |
+| D-14 | Out parameters on failure (ADR-0013 point 2) | A neutral value is written first: `usize::MAX` for a page index, 0 for tokens and counts |
+| D-15 | Concurrent use of one handle (ADR-0013 point 3) | Return `BUSY`, do not block |
+| D-16 | ABI 0.x versioning (ADR-0013 point 4, ARCH-F-03) | Exact major and minor match while 0.x, and the ABI moves to 0.2 with the handle change. ADR-0004 and `rules/interoperability.md` item 7 need amending (not done yet) |
+| D-17 | Status codes (ADR-0013 point 5) | 5 = `INVALID_HANDLE`, 6 = `BUSY`. `free(0)` is a no-op returning OK |
+| D-18 | `free` on a handle in use (ADR-0013 point 7) | `free` succeeds and the running call finishes |
+| D-19 | `MAX_LIVE_HANDLES` and ADR-0013 acceptance (points 6 and 8) | The Security Engineer proposes the value and the owner accepts it. ADR-0013 stays Proposed until the Security Engineer has reviewed it. Then the owner accepts it. FFI-003 starts after that |
+| D-12 | Output determinism (OQ-10) | Deterministic by default: no timestamp and no random document ID. Timestamps and IDs are opt-in. ADR-0007 must be updated to say so, and it stays Proposed until accepted |
 
 ## Resolved questions (D-07)
 
 | ID | Decision | State |
 |---|---|---|
-| OQ-01 | Security reports through GitHub private vulnerability reporting. Conduct reports through a role alias on a project-owned domain, not a personal address | **Security side done:** GitHub private vulnerability reporting enabled on 2026-11-23 and `SECURITY.md` updated. **Action pending (owner):** create the conduct alias and replace the placeholder in `CODE_OF_CONDUCT.md` |
-| OQ-02 | Choose the final organisation and repository name before publishing. Check that `mkpdf` is free on crates.io, npm, PyPI, NuGet and Maven | **Partly done:** repository is `github.com/patcsy88/mkpdf` and `Cargo.toml` now points to it. **Pending:** whether to move to an organisation, and the registry availability check, which has not been run |
+| OQ-01 | Security reports through GitHub private vulnerability reporting. Conduct reports through a role alias on a project-owned domain, not a personal address | **Security side done:** GitHub private vulnerability reporting enabled on 2026-11-23 and `SECURITY.md` updated. **Deferred by owner (2026-11-23):** the conduct alias is to be created later, and the placeholder in `CODE_OF_CONDUCT.md` stays until then. It must be set before any release |
+| OQ-02 | Choose the final organisation and repository name before publishing. Check that `mkpdf` is free on crates.io, npm, PyPI, NuGet and Maven | **Decided (2026-11-23): move to a GitHub organisation.** **Pending (owner):** choose the organisation name, create it and transfer the repository. `Cargo.toml`, `SECURITY.md` and the README links then need updating. Until then `github.com/patcsy88/mkpdf` is a temporary home. The registry availability check has not been run |
 | OQ-03 | Tier 1 (CI-tested, release-blocking): Linux x86_64 and aarch64, macOS arm64, Windows x86_64. Best effort: macOS x86_64, musl, `wasm32` | Decided. Not yet true: only macOS arm64 has been tested, by hand. The CI matrix covers three runners and has never run. It needs a Linux aarch64 job |
 | OQ-04 | Minimum Rust version stays 1.85, the floor for edition 2024. It is raised only through a recorded decision | Decided. The CI MSRV job has not run, so it is unverified |
 | OQ-05 | Candidates to evaluate: `miniz_oxide` (via `flate2`) for Flate, `ttf-parser` or `fontations` for fonts, `subsetter`, `rustybuzz` | **No crate is approved.** The names are from memory. Each needs the review in `rules/licensing.md`. Flate is needed first, fonts and shaping later |
@@ -32,7 +44,6 @@ Source: the project brief. This document records the decisions taken and the ope
 
 | ID | Question | Why it matters | Needed by |
 |---|---|---|---|
-| OQ-10 | Is the PDF output deterministic by default (no timestamp, no random document ID)? | The brief wants determinism "where supported" | ADR-0007 |
 | OQ-11 | How will the validators that are not installed (qpdf, veraPDF, cbindgen, cargo-audit) be provided? | Without them conformance cannot be claimed. Installing them locally needs the owner's approval | Before PDF-002 |
 | OQ-12 | What is the panic strategy (`unwind` or `abort`)? | The panic guard depends on `unwind` (threat T-01) | Before v0.1.0 |
 | OQ-13 | How is the output buffer owned across the C ABI? | Needed before FFI-001 | Before FFI-001 |

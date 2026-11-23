@@ -53,7 +53,7 @@ Planned internal modules of `mkpdf-core`, split into separate crates only when a
 - **Layering is enforced by the compiler.** The core forbids `unsafe`. Only the FFI crate allows it.
 - **Resource limits** are constants in the core (page size, page count). Every input-driven allocation gets one.
 - **Determinism.** Same input and options give the same bytes. No clock and no random source in the core (ADR-0007).
-- **WASM.** The core must build for `wasm32` without threads or a filesystem (ADR-0009). This is not yet verified by CI.
+- **WASM.** The core must build for `wasm32` without threads or a filesystem (ADR-0009). A CI job for this (`wasm-core`) is defined in `.github/workflows/ci.yml` and has never run, so the claim is unverified. On `wasm32-unknown-unknown` a panic aborts, so the FFI panic guard (ADR-0011) does not apply there.
 - **Versioning.** SemVer for Rust. A separate `(major, minor)` ABI version for C (ADR-0004).
 - **PDF versions.** Default target is PDF 1.7. PDF 2.0 features are opt-in and tied to a version option (ADR-0006).
 
@@ -61,12 +61,20 @@ Planned internal modules of `mkpdf-core`, split into separate crates only when a
 
 1. The caller builds a `Document` (through Rust, or through handles over the C ABI).
 2. The core validates each input as it is added and rejects values outside the limits.
-3. A serialiser (v0.1.0) turns the model into bytes in memory. The caller gets a buffer, or a callback receives chunks. The core does not write files.
+3. A serialiser (v0.1.0) turns the model into bytes in memory. The core does not write files. How the bytes reach a C caller is not decided: ADR-0012 (Proposed) recommends a library-allocated buffer that the caller releases with `mkpdf_buffer_free`. It compares this with a caller-supplied buffer and a streaming callback, and proposes no callback for now. Until the owner decides, no serialisation function exists in the C ABI.
 
 ## Not decided yet
 
-See `docs/requirements.md` (OQ-03, OQ-05, OQ-06, OQ-09). In particular: supported platforms, compression and font crates, text in v0.1.0, and the timing of the server interfaces.
+See `docs/requirements.md` (OQ-03, OQ-05, OQ-06, OQ-09 to OQ-13). In particular:
+
+- Supported platforms are decided (OQ-03) but only macOS arm64 has been tested, by hand. Compression and font crates (OQ-05) are not chosen.
+- Determinism defaults, the document ID and dates (OQ-10, ADR-0007).
+- Panic strategy: ADR-0011 is Proposed (OQ-12).
+- Output-buffer ownership: ADR-0012 is Proposed (OQ-13).
+- Generation-checked handles (D-08, FFI-003). The owner has decided to build them. The ADR that amends ADR-0003 and fixes the ABI shape is not written yet.
+- The ABI version rule while the major is 0 (`docs/reviews/gate-1-architecture.md`, ARCH-F-03).
+- A record of resource limits and their tests (ARCH-F-07).
 
 ## Review status
 
-No architecture or security review has been done. See GATE-1 in `docs/roadmap.md`.
+GATE-1 review: the architecture review is recorded in `docs/reviews/gate-1-architecture.md` (pass with conditions, single-role, not independent) and the security review in `docs/reviews/gate-1-security.md`. This document stays a draft. The conditions in those records are open, and no ADR is Accepted.

@@ -48,10 +48,11 @@ Priority: P0 blocks everything after it, P1 is required for the release, P2 is d
 | GOV-001 | Project rules | All seven rule files exist in `rules/` and are referenced by AGENTS.md | P0 | none | Draft |
 | GOV-002 | Governance files | AGENTS.md, LICENSE, NOTICE, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, README.md, CHANGELOG.md exist | P0 | none | Draft |
 | LIC-001 | Licence and dependency policy | Apache-2.0, `deny.toml`, `docs/dependencies.md` allowlist and provenance record | P0 | none | Draft |
-| AGT-001 | Agent configuration | Nine agents, each with responsibilities, scope, permissions, deliverables, quality requirements and escalation rules | P0 | GOV-001 | Draft |
+| AGT-001 | Agent configuration | Ten agents (the nine required plus the Risk Reviewer approved under OQ-14), each with responsibilities, scope, permissions, deliverables, quality requirements and escalation rules | P0 | GOV-001 | Draft |
 | QA-001 | Testing strategy | Unit, integration, fuzz, conformance and regression plans in `rules/testing.md` and `docs/testing.md` | P0 | ARCH-001 | Draft |
 | CICD-001 | CI/CD | Workflows for fmt, clippy, test, deny, audit and the Tier 1 matrix (Linux x86_64 and aarch64, macOS arm64, Windows x86_64). Each job is run at least once. The Linux aarch64 runner (`ubuntu-24.04-arm`) is in the workflow matrix but unrun, and its availability for this repository is unconfirmed | P0 | ARCH-003 | Draft (unrun) |
 | OWN-001 | Owner actions | Enable GitHub private vulnerability reporting, create the conduct alias, choose the organisation and repository name, check `mkpdf` name availability on the five registries (OQ-01, OQ-02) | P0 | none | Pending (owner) |
+| FFI-003 | Generation-checked handles (D-08, SEC-F-04) | An ADR amends ADR-0003. Handles are validated on every call. Double free, use after free and foreign pointers return an error status and never cause undefined behaviour. Tests cover each case, and Miri passes. The ABI and header change and the ABI minor version is raised | P0 | DEC-001 | Not started |
 | DEC-001 | Panic strategy and output-buffer ownership | ADRs for OQ-12 and OQ-13 | P0 | ARCH-001 | Not started |
 | API-001 | Document API specification | `docs/api/rust-api.md` matches the code in `mkpdf-core` | P0 | ARCH-001, SEC-001 | Draft |
 | API-002 | C ABI specification | `docs/api/c-abi.md` and `include/mkpdf.h` state ownership, error, threading and versioning rules | P0 | SEC-001 | Draft |
