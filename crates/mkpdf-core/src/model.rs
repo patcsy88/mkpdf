@@ -7,6 +7,10 @@ pub const MAX_PAGE_DIMENSION_PT: f64 = 14_400.0;
 /// Maximum number of pages in one document (resource limit, see threat model T-04).
 pub const MAX_PAGES: usize = 100_000;
 
+/// Maximum length of the document title, in bytes of UTF-8 (resource limit, see
+/// threat model T-10).
+pub const MAX_TITLE_BYTES: usize = 4096;
+
 /// A single page. Content is added in later milestones.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Page {
@@ -71,8 +75,25 @@ impl Document {
     }
 
     /// Set the document title metadata.
-    pub fn set_title(&mut self, title: impl Into<String>) {
-        self.title = Some(title.into());
+    ///
+    /// The title is measured in bytes of UTF-8, not in characters, and may be at most
+    /// [`MAX_TITLE_BYTES`] long. The length is checked before the input is copied.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ErrorKind::LimitExceeded`] when the title is longer than
+    /// [`MAX_TITLE_BYTES`]. The previous title is left unchanged. The error message
+    /// does not contain the input.
+    pub fn set_title(&mut self, title: impl AsRef<str>) -> Result<(), Error> {
+        let title = title.as_ref();
+        if title.len() > MAX_TITLE_BYTES {
+            return Err(Error::new(
+                ErrorKind::LimitExceeded,
+                format!("title exceeds {MAX_TITLE_BYTES} bytes"),
+            ));
+        }
+        self.title = Some(title.to_owned());
+        Ok(())
     }
 
     /// Document title, if set.
@@ -142,7 +163,55 @@ mod tests {
     fn document_title_roundtrip() {
         let mut doc = Document::new();
         assert_eq!(doc.title(), None);
-        doc.set_title("Héllo ✓");
+        doc.set_title("Héllo ✓").unwrap();
         assert_eq!(doc.title(), Some("Héllo ✓"));
+    }
+
+    #[test]
+    fn title_at_limit_is_accepted() {
+        let mut doc = Document::new();
+        let title = "a".repeat(MAX_TITLE_BYTES);
+        doc.set_title(&title).unwrap();
+        assert_eq!(doc.title(), Some(title.as_str()));
+    }
+
+    #[test]
+    fn title_over_limit_is_rejected_and_old_title_kept() {
+        let mut doc = Document::new();
+        doc.set_title("old").unwrap();
+        let err = doc.set_title("a".repeat(MAX_TITLE_BYTES + 1)).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::LimitExceeded);
+        assert!(!err.message().contains("aaaa"));
+        assert_eq!(doc.title(), Some("old"));
+    }
+
+    #[test]
+    fn title_limit_counts_bytes_not_chars() {
+        let mut doc = Document::new();
+        // "é" is 2 bytes, so this title has exactly MAX_TITLE_BYTES bytes.
+        let fits = format!("{}é", "a".repeat(MAX_TITLE_BYTES - 2));
+        assert_eq!(fits.len(), MAX_TITLE_BYTES);
+        doc.set_title(&fits).unwrap();
+        // The 2-byte char starts at the last allowed byte and ends past it. Its char
+        // count is within the limit, so only a byte count rejects it.
+        let straddles = format!("{}é", "a".repeat(MAX_TITLE_BYTES - 1));
+        assert_eq!(straddles.len(), MAX_TITLE_BYTES + 1);
+        assert!(straddles.chars().count() <= MAX_TITLE_BYTES);
+        let err = doc.set_title(&straddles).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::LimitExceeded);
+        assert_eq!(doc.title(), Some(fits.as_str()));
+    }
+
+    #[test]
+    fn max_pages_is_enforced() {
+        let mut doc = Document::new();
+        let page = Page::a4();
+        for _ in 0..MAX_PAGES {
+            doc.add_page(page.clone()).unwrap();
+        }
+        assert_eq!(doc.page_count(), MAX_PAGES);
+        let err = doc.add_page(page).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::LimitExceeded);
+        assert_eq!(doc.page_count(), MAX_PAGES);
     }
 }

@@ -13,7 +13,7 @@ use std::cell::RefCell;
 use std::ffi::{CString, c_char};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use mkpdf_core::{Document, Error, ErrorKind, Page};
+use mkpdf_core::{Document, Error, ErrorKind, MAX_TITLE_BYTES, Page};
 
 /// ABI major version. Incremented on any breaking change.
 pub const ABI_MAJOR: u32 = 0;
@@ -40,6 +40,10 @@ pub struct MkpdfDocument {
 
 enum Failure {
     NullPointer(&'static str),
+    /// Static text only. It must never contain caller input.
+    InvalidArgument(&'static str),
+    /// Static text only. It must never contain caller input.
+    LimitExceeded(&'static str),
     InvalidUtf8,
     Core(Error),
 }
@@ -48,6 +52,8 @@ impl Failure {
     fn code(&self) -> i32 {
         match self {
             Failure::NullPointer(_) => MKPDF_ERR_NULL_POINTER,
+            Failure::InvalidArgument(_) => MKPDF_ERR_INVALID_ARGUMENT,
+            Failure::LimitExceeded(_) => MKPDF_ERR_LIMIT_EXCEEDED,
             Failure::InvalidUtf8 => MKPDF_ERR_INVALID_UTF8,
             Failure::Core(e) => match e.kind() {
                 ErrorKind::LimitExceeded => MKPDF_ERR_LIMIT_EXCEEDED,
@@ -59,6 +65,7 @@ impl Failure {
     fn message(&self) -> String {
         match self {
             Failure::NullPointer(name) => format!("argument `{name}` is null"),
+            Failure::InvalidArgument(msg) | Failure::LimitExceeded(msg) => (*msg).to_owned(),
             Failure::InvalidUtf8 => "string argument is not valid UTF-8".to_owned(),
             Failure::Core(e) => e.message().to_owned(),
         }
@@ -185,7 +192,9 @@ pub unsafe extern "C" fn mkpdf_document_free(doc: *mut MkpdfDocument) {
 ///
 /// # Safety
 /// `doc` must be a live handle. `utf8` must be readable for `len` bytes (it may be null only
-/// when `len` is 0).
+/// when `len` is 0). A `len` above `isize::MAX` is rejected with `MKPDF_ERR_INVALID_ARGUMENT`,
+/// and a `len` above `MAX_TITLE_BYTES` with `MKPDF_ERR_LIMIT_EXCEEDED`, in both cases before
+/// any byte is read. On any failure the previous title is kept.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn mkpdf_document_set_title(
     doc: *mut MkpdfDocument,
@@ -199,12 +208,20 @@ pub unsafe extern "C" fn mkpdf_document_set_title(
             &[]
         } else if utf8.is_null() {
             return Err(Failure::NullPointer("utf8"));
+        } else if len > isize::MAX as usize {
+            // Checked first: a slice longer than `isize::MAX` is undefined behaviour.
+            return Err(Failure::InvalidArgument("`len` exceeds isize::MAX"));
+        } else if len > MAX_TITLE_BYTES {
+            return Err(Failure::LimitExceeded("title exceeds the maximum length"));
         } else {
-            // SAFETY: non-null and caller guarantees `len` readable bytes.
+            // SAFETY: `utf8` is non-null, and the caller guarantees it is readable for `len`
+            // bytes. The checks above ensure `len <= MAX_TITLE_BYTES`, which is below
+            // `isize::MAX`, so the slice size is valid. The bytes are only read and the
+            // slice does not outlive this call.
             unsafe { std::slice::from_raw_parts(utf8.cast::<u8>(), len) }
         };
         let title = std::str::from_utf8(bytes).map_err(|_| Failure::InvalidUtf8)?;
-        doc.inner.set_title(title);
+        doc.inner.set_title(title)?;
         Ok(())
     })
 }
@@ -347,6 +364,123 @@ mod tests {
             assert!(last_error().is_none());
             mkpdf_document_free(doc);
         }
+    }
+
+    fn new_doc_with_title(title: &str) -> *mut MkpdfDocument {
+        let mut doc = ptr::null_mut();
+        // SAFETY: `doc` is writable, and `title` is readable for `title.len()` bytes.
+        unsafe {
+            assert_eq!(mkpdf_document_new(&raw mut doc), MKPDF_OK);
+            assert_eq!(
+                mkpdf_document_set_title(doc, title.as_ptr().cast(), title.len()),
+                MKPDF_OK
+            );
+        }
+        doc
+    }
+
+    /// Calls `set_title` with a real buffer but a hostile `len`. The buffer is far smaller than
+    /// `len`, so the test only passes if the length check runs before any slice is built.
+    fn set_title_with_len(doc: *mut MkpdfDocument, len: usize) -> i32 {
+        let secret = b"SECRET-INPUT";
+        // SAFETY: `doc` is live. `len` is deliberately larger than the buffer, and the function
+        // under test must reject it without reading.
+        unsafe { mkpdf_document_set_title(doc, secret.as_ptr().cast(), len) }
+    }
+
+    fn assert_title_unchanged(doc: *mut MkpdfDocument, expected: &str) {
+        // SAFETY: `doc` is a live handle owned by the calling test.
+        assert_eq!(unsafe { &*doc }.inner.title(), Some(expected));
+    }
+
+    #[test]
+    fn set_title_rejects_len_usize_max_without_reading() {
+        let doc = new_doc_with_title("before");
+        assert_eq!(
+            set_title_with_len(doc, usize::MAX),
+            MKPDF_ERR_INVALID_ARGUMENT
+        );
+        let msg = last_error().unwrap();
+        assert!(!msg.contains("SECRET"), "message echoes input: {msg}");
+        assert_title_unchanged(doc, "before");
+        // SAFETY: `doc` is live and freed once.
+        unsafe { mkpdf_document_free(doc) };
+    }
+
+    #[test]
+    fn set_title_rejects_len_just_over_isize_max_without_reading() {
+        let doc = new_doc_with_title("before");
+        for len in [isize::MAX as usize + 1, isize::MAX as usize + 2] {
+            assert_eq!(set_title_with_len(doc, len), MKPDF_ERR_INVALID_ARGUMENT);
+            let msg = last_error().unwrap();
+            assert!(!msg.contains("SECRET"), "message echoes input: {msg}");
+        }
+        assert_title_unchanged(doc, "before");
+        // SAFETY: `doc` is live and freed once.
+        unsafe { mkpdf_document_free(doc) };
+    }
+
+    #[test]
+    fn set_title_rejects_len_isize_max_as_limit_without_reading() {
+        // `isize::MAX` is a valid slice size in theory, but far above the title limit.
+        let doc = new_doc_with_title("before");
+        assert_eq!(
+            set_title_with_len(doc, isize::MAX as usize),
+            MKPDF_ERR_LIMIT_EXCEEDED
+        );
+        assert!(!last_error().unwrap().contains("SECRET"));
+        assert_title_unchanged(doc, "before");
+        // SAFETY: `doc` is live and freed once.
+        unsafe { mkpdf_document_free(doc) };
+    }
+
+    #[test]
+    fn set_title_over_limit_is_rejected_and_keeps_previous_title() {
+        let doc = new_doc_with_title("before");
+        let too_long = "Q".repeat(MAX_TITLE_BYTES + 1);
+        // SAFETY: `doc` is live and `too_long` is readable for its length.
+        let code =
+            unsafe { mkpdf_document_set_title(doc, too_long.as_ptr().cast(), too_long.len()) };
+        assert_eq!(code, MKPDF_ERR_LIMIT_EXCEEDED);
+        let msg = last_error().unwrap();
+        assert!(!msg.contains('Q'), "message echoes input: {msg}");
+        assert_title_unchanged(doc, "before");
+        // SAFETY: `doc` is live and freed once.
+        unsafe { mkpdf_document_free(doc) };
+    }
+
+    #[test]
+    fn set_title_at_limit_is_accepted() {
+        let doc = new_doc_with_title("before");
+        let at_limit = "Q".repeat(MAX_TITLE_BYTES);
+        // SAFETY: `doc` is live and `at_limit` is readable for its length.
+        let code =
+            unsafe { mkpdf_document_set_title(doc, at_limit.as_ptr().cast(), at_limit.len()) };
+        assert_eq!(code, MKPDF_OK);
+        assert!(last_error().is_none());
+        assert_title_unchanged(doc, &at_limit);
+        // SAFETY: `doc` is live and freed once.
+        unsafe { mkpdf_document_free(doc) };
+    }
+
+    #[test]
+    fn set_title_failures_keep_previous_title() {
+        let doc = new_doc_with_title("before");
+        let bad = [0xff_u8, 0xfe];
+        // SAFETY: `doc` is live, and `bad` is readable for 2 bytes.
+        unsafe {
+            assert_eq!(
+                mkpdf_document_set_title(doc, bad.as_ptr().cast(), bad.len()),
+                MKPDF_ERR_INVALID_UTF8
+            );
+            assert_eq!(
+                mkpdf_document_set_title(doc, ptr::null(), 3),
+                MKPDF_ERR_NULL_POINTER
+            );
+        }
+        assert_title_unchanged(doc, "before");
+        // SAFETY: `doc` is live and freed once.
+        unsafe { mkpdf_document_free(doc) };
     }
 
     #[test]

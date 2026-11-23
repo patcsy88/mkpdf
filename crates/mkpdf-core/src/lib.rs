@@ -11,7 +11,7 @@ mod error;
 mod model;
 
 pub use error::{Error, ErrorKind};
-pub use model::{Document, MAX_PAGE_DIMENSION_PT, MAX_PAGES, Page};
+pub use model::{Document, MAX_PAGE_DIMENSION_PT, MAX_PAGES, MAX_TITLE_BYTES, Page};
 
 /// Crate version as declared in `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
