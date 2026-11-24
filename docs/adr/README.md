@@ -16,8 +16,8 @@ Statuses: Proposed, Accepted, Superseded, Rejected. All ADRs below are **Propose
 | [0008](0008-error-model.md) | Error model | Proposed |
 | [0009](0009-wasm-and-no-io-core.md) | No-I/O core and WebAssembly | Proposed |
 | [0010](0010-sdks-consume-c-abi.md) | SDKs consume the C ABI only | Proposed |
-| [0011](0011-panic-strategy.md) | Panic strategy (`unwind` or `abort`), resolves OQ-12 | Proposed (recommends `unwind`, pinned and enforced) |
-| [0012](0012-output-buffer-ownership.md) | Output-buffer ownership across the C ABI, resolves OQ-13 | Proposed (recommends a library-allocated buffer with `mkpdf_buffer_free`) |
-| [0013](0013-generation-checked-handles.md) | Generation-checked handles (owner decisions D-08, D-11; backlog FFI-003), amends ADR-0003 | Proposed (open points for the owner are marked NOT DECIDED inside) |
+| [0011](0011-panic-strategy.md) | Panic strategy (`unwind` or `abort`), resolves OQ-12 | Proposed (recommends `unwind`, pinned and enforced. Amended 2026-11-24 for SEC-ADR-06 to 09 and RISK-F-P2-02, 08, 09) |
+| [0012](0012-output-buffer-ownership.md) | Output-buffer ownership across the C ABI, resolves OQ-13 | Proposed (library-allocated buffer, token handle, depends on ADR-0013. Amended 2026-11-24 for SEC-ADR-10 to 13, 15 and RISK-F-P2-04, 10, 11. `MAX_OUTPUT_BYTES` not decided) |
+| [0013](0013-generation-checked-handles.md) | Generation-checked handles (owner decisions D-08, D-11; backlog FFI-003), amends ADR-0003 | Proposed (D-13 to D-18 and D-20 recorded as decided. Amended 2026-11-24 for SEC-ADR-01 to 05, 14, 15. Only acceptance and the byte values are NOT DECIDED) |
 
 ADR-0013 must be accepted before FFI-001 starts. A resource-limits ADR is listed in `docs/requirements.md` ("Architectural decisions identified") and does not exist.

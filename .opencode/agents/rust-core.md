@@ -22,7 +22,7 @@ permissions:
     effect: ask
   - action: shell
     resource: "*"
-    effect: deny
+    effect: ask
   - action: shell
     resource: "cargo fmt*"
     effect: allow

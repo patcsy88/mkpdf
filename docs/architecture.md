@@ -51,9 +51,9 @@ Planned internal modules of `mkpdf-core`, split into separate crates only when a
 ## Key properties
 
 - **Layering is enforced by the compiler.** The core forbids `unsafe`. Only the FFI crate allows it.
-- **Resource limits** are constants in the core (page size, page count). Every input-driven allocation gets one.
+- **Resource limits** are constants in the core (page size, page count, title length). The rule is that every input-driven allocation gets one (`rules/architecture.md` item 6). That is the target, not yet a fact: output size, handle count and live buffer bytes are proposed in ADR-0012 and ADR-0013 and do not exist in code.
 - **Determinism.** Same input and options give the same bytes. No clock and no random source in the core (ADR-0007).
-- **WASM.** The core must build for `wasm32` without threads or a filesystem (ADR-0009). A CI job for this (`wasm-core`) is defined in `.github/workflows/ci.yml` and has never run, so the claim is unverified. On `wasm32-unknown-unknown` a panic aborts, so the FFI panic guard (ADR-0011) does not apply there.
+- **WASM.** The core must build for `wasm32` without threads or a filesystem (ADR-0009). A CI job for this (`wasm-core`) builds `mkpdf-core` for `wasm32-unknown-unknown` and passed in CI run 45103722429. It runs no test on wasm, so "supported" is not yet shown (OQ-09). On `wasm32-unknown-unknown` a panic aborts, so the FFI panic guard (ADR-0011) does not apply there.
 - **Versioning.** SemVer for Rust. A separate `(major, minor)` ABI version for C (ADR-0004).
 - **PDF versions.** Default target is PDF 1.7. PDF 2.0 features are opt-in and tied to a version option (ADR-0006).
 

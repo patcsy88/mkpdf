@@ -24,6 +24,10 @@ Source: the project brief. This document records the decisions taken and the ope
 | D-17 | Status codes (ADR-0013 point 5) | 5 = `INVALID_HANDLE`, 6 = `BUSY`. `free(0)` is a no-op returning OK |
 | D-18 | `free` on a handle in use (ADR-0013 point 7) | `free` succeeds and the running call finishes |
 | D-19 | `MAX_LIVE_HANDLES` and ADR-0013 acceptance (points 6 and 8) | The Security Engineer proposes the value and the owner accepts it. ADR-0013 stays Proposed until the Security Engineer has reviewed it. Then the owner accepts it. FFI-003 starts after that |
+| D-20 | `MAX_LIVE_HANDLES` (D-19) | 65 536 per handle kind, plus a table cap of 2^24 slots and a total byte budget for live buffers (Security proposal, SEC-ADR-01/05). The table size estimate is not measured |
+| D-21 | Branch protection | Enabled 2026-11-24 on `main` after the first green CI run (run 45103722429): the 10 CI jobs are required checks, force pushes and deletions are blocked, no required reviews, and admins are not enforced so the owner can still push |
+| D-22 | FFI-003 split | FFI-003a is the ADR-0013 decision and FFI-003b is the implementation. Writer design (PDF-001) may proceed once ADR-0013 is accepted and does not wait for FFI-003b |
+| D-23 | Review follow-ups | The architect amends ADR-0011, ADR-0012 and ADR-0013 for the Security findings (SEC-ADR-*) and risk findings P2-02, P2-07 to P2-11. They stay Proposed. SEC-F-20 and SEC-F-21 are closed by the docs and interop agents. Phase 3 of the risk review runs after that |
 | D-12 | Output determinism (OQ-10) | Deterministic by default: no timestamp and no random document ID. Timestamps and IDs are opt-in. ADR-0007 must be updated to say so, and it stays Proposed until accepted |
 
 ## Resolved questions (D-07)
