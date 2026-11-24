@@ -298,3 +298,126 @@ This review accepts no ADR and no risk. Recommendations above are inputs for the
 
 Review again when the ADRs are amended, when FFI-003 code exists (the table module, every export, and the tests in ADR-0013 section 10, with a Miri log), and when the writer sets `MAX_OUTPUT_BYTES`.
 
+## Re-review after amendments (2026-11-24)
+
+Reviewer: Security Engineer. Scope: the amended ADR-0011, ADR-0012 and ADR-0013 at commit `ffa10a6`, and the interop changes in `4a0751b` (`crates/mkpdf-ffi/src/lib.rs`, `include/mkpdf.h`, `docs/api/c-abi.md`, `docs/api/rust-api.md`, `CHANGELOG.md`). Line references are `0011:N`, `0012:N`, `0013:N` for `docs/adr/001N-*.md` at `ffa10a6`. This section accepts no ADR and no risk.
+
+### What was run (2026-11-24, macOS arm64, local, rustc 1.100.0 Homebrew, HEAD `ffa10a6`, clean tree)
+
+| Command | Result |
+|---|---|
+| `cargo fmt --all --check` | exit 0 |
+| `cargo clippy --workspace --all-targets --locked -- -D warnings` (after `touch` on both crate sources, so the crates were re-checked) | exit 0, `Finished`, no warnings |
+| `cargo test --workspace --locked` | exit 0. `mkpdf-core` 8 passed, `mkpdf-ffi` 15 passed, `mkpdf-cli` 0, doc-tests 0 and 0. 23 tests in total, 0 failed, 0 ignored |
+| `cargo deny check` | exit 0: `advisories ok, bans ok, licenses ok, sources ok`. One warning: `Zlib` is an unmatched licence allowance. The workspace has no third-party dependency, so this checks almost nothing |
+| `gh run view` on runs 45103722429 (`ccc73d5`) and 45325022117 (`9acbb60`) | Both `success` on all 10 jobs. The `miri-ffi` log of 45103722429 lists 12 tests passed, including the three `set_title_rejects_len_*` tests, under `rustc 1.102.0-nightly` |
+| Stand-alone check of the positive `cfg` form (ADR-0011 item 2) | `#[cfg(not(panic = "unwind"))] compile_error!` builds with `-C panic=unwind` (exit 0) and fails with `-C panic=abort` (exit 1). This confirms `0011:39` |
+| Stand-alone check of `Arc<[u8]>` storage (ADR-0012 rule 3), `rustc -O` | `Arc::<[u8]>::from(vec)` puts the bytes in a **new** allocation (data pointer differs from the `Vec` pointer). `Arc::new(vec.into_boxed_slice())` keeps the original allocation. `size_of::<Option<Arc<[u8]>>>()` = 16, `size_of::<Option<Arc<Box<[u8]>>>>()` = 8. See SEC-ADR-16 |
+
+### What was NOT run
+
+- Miri locally (no rustup, no nightly, `cargo-miri` not installed). The Miri evidence is from CI only, and only up to `9acbb60`.
+- `cargo audit` (not installed locally). CI `audit` job passed in both runs above.
+- **Commits `4a0751b` and `ffa10a6` are local and not pushed.** The 15-test FFI suite, including the three tests added in `4a0751b`, has not run in CI or under Miri. `4a0751b` changes no executable line in `lib.rs` (its removed lines are all comments), so the Miri result for the `set_title` code still applies to the code. It does not cover the new tests.
+- `cargo test --release`, Linux, Windows, the `wasm32` target (not installed, so a 32-bit build of the proposed constants was not tried), a `-C panic=abort` build of `mkpdf-ffi` itself, and any C caller.
+- None of the ADR designs is implemented, so every "resolved" below means **the text now says the right thing**. Nothing in ADR-0011 to ADR-0013 has been tested.
+
+### Task 1: status of each finding
+
+| ID | Sev | Status | Evidence | Remaining |
+|---|---|---|---|---|
+| SEC-ADR-01 | medium | **Resolved (text)** | Rules 1 to 4 at `0013:107-112`; constants and `const` assert at `0013:102-104`; checked `u32` index, no `as` truncation at `0013:92`; order in `free` at `0013:111` and `0013:149`; lookup order (kind, index, generation, value) at `0013:112`; tests 5, 6, 8 at `0013:230-233` | Implementation and tests (FFI-003b) |
+| SEC-ADR-02 | low | **Resolved** | "minutes to tens of minutes" at `0013:150` (2^32 cycles at a few million per second is about 20 to 70 minutes); retirement is a required test at `0013:150` and `0013:231` | None. See the disagreement below |
+| SEC-ADR-03 | medium | **Resolved (text)** | Allocation before the table lock and drop after it at `0013:116`; `Arc` clone and guard inside `catch_unwind` at `0013:137` and `0011:73`; `clear_poison` forbidden at `0013:140` and `0011:70`; test 11 with a panicking `Drop` at `0013:236` | The `disallowed-methods` entry for `clear_poison` is proposed, not written (rust-core or devops) |
+| SEC-ADR-04 | low | **Partly resolved** | Signal handler, panic hook and `fork` listed at `0013:204-212` | The sentence in `docs/api/c-abi.md` is deferred to interop with FFI-003b (`0013:38`). I accept the deferral, because the ABI it describes does not exist yet |
+| SEC-ADR-05 | medium | **Resolved (text), value open** | `try_reserve` for table growth at `0013:116`; byte budget at `0012:96` and `0013:175`; "the handle count bounds the table, not memory" at `0012:96` and `0013:304` | Owner sets the budget. See SEC-ADR-17 for two gaps in the budget rule |
+| SEC-ADR-06 | medium | **Resolved (text)** | Positive form, no `wasm32` exception at `0011:63`; the profile pin described as secondary at `0011:62`; release-`cdylib` panic test through a real export at `0011:67`; expected-failure CI build at `0011:66`. Positive form re-run by me (see above) | CI jobs and the test (devops, rust-core). Condition C-2 stays open |
+| SEC-ADR-07 | low | **Resolved (text)** | `--cfg mkpdf_test_hooks`, declared in `unexpected_cfgs`, not a Cargo feature at `0011:68`; symbol check against the header at `0011:69`; the same gate for ADR-0013 tests 6 and 12 and ADR-0012 test 4 (`0013:231`, `0013:237`, `0012:126`) | Implementation |
+| SEC-ADR-08 | medium | **Resolved (text)** | Abort paths listed at `0011:47-56`, including `panic_nounwind` and a panic during unwinding; payload `mem::forget` or nested `catch_unwind`, and `set_last_error` inside the guard, at `0011:73`; panic-free `Drop` at `0011:72` | The rules-file line (panic-free `Drop`) and the `C-unwind` CI check are proposals to the owner and devops (`0011:24-25`). I accept that the architect cannot edit the rules file. Both stay open with those owners |
+| SEC-ADR-09 | low | **Partly resolved** | Sequencing rule stated at `0011:71` and marked as a proposal for the Orchestrator (`0011:26`) | `docs/roadmap.md` does not record it (no entry mentions mutating exports; `roadmap.md:55-56` covers only FFI-003a/b). No new mutating export has been added since the first review (`4a0751b` changes only the existing `set_title`), so nothing has been broken yet. Orchestrator to record it |
+| SEC-ADR-10 | medium | **Resolved** | `typedef uint64_t MkpdfBuffer` and status-returning accessors at `0012:72-84`; dependency on ADR-0013 at `0012:5` | None |
+| SEC-ADR-11 | medium | **Partly resolved** | Single `mkpdf_buffer_view` at `0012:79` and `0012:89`; pointer valid until `free` **starts** at `0012:89`, `0012:91`, `0013:172`; buffers never `BUSY` at `0012:90`; proposed amendment to `rules/interoperability.md` item 2 at `0012:135` | The storage type `Arc<[u8]>` copies the whole output on construction (new finding SEC-ADR-16). `0013:170` says "held as a boxed slice", which is not what `Arc<[u8]>` is |
+| SEC-ADR-12 | medium | **Partly resolved, value open** | `1 << 30` proposed, not decided, at `0012:94` and `0012:143`; `try_reserve_exact` at `0012:95`; writer caveat stated at `0012:95` | Owner sets the value. Writer enforcement waits for PDF-001. `try_reserve_exact` is undone by the `Arc<[u8]>` conversion (SEC-ADR-16) |
+| SEC-ADR-13 | low | **Resolved** | "will be a tested property ... once" at `0011:105`; "will be closed when FFI-003b is implemented and tests 1 to 3 pass" at `0012:134`; "None exists yet" at `0013:224`; counts called estimates at `0013:199` and `0013:296`; the Miri statement re-based on CI evidence at `0013:248`, which I checked against the job log | None |
+| SEC-ADR-14 | low | **Partly resolved** | Wrong-object hazard, Node `BigInt` only, `!= 0`, Java sign bit, high-generation test constructor at `0013:214-220` and `0013:231`; wrapper table at `0012:102` and `0012:110-112` | The rules go into `docs/api/c-abi.md` (interop) before the first SDK, as the first review proposed. Not a blocker for acceptance |
+| SEC-ADR-15 | low | **Resolved (text)** | `BUSY` on every document call including `page_count` and `save` at `0013:127`; no silent retry at `0013:129` and `0013:164`; `save` may return `BUSY` at `0012:93`; test 9 covers a read-only call and a second `save` at `0013:234`; ADR-0012 test 6 at `0012:128` | The `c-abi.md` sentence comes with FFI-003b (interop) |
+
+### Task 1: the architect's disagreements
+
+**SEC-ADR-02, LIFO kept (`0013:37`). I accept the reasoning.** My finding asked for the wording to be fixed and said FIFO was optional. Retirement already removes ABA reuse: a retired slot has `value = None` and generation `u32::MAX` for good (`0013:112`), so FIFO would only spread retirement over more slots and gives no safety gain. Even with LIFO the slot cap is out of reach: about 2^24 retirements times about 2^32 cycles each is about 2^56 frees. One correction to the cost figure at `0013:150`: "about 16 bytes" holds for the document table. For the buffer table as designed (`Option<Arc<[u8]>>` is 16 bytes, measured) a slot is about 24 bytes. That is still small.
+
+**SEC-ADR-11, `Arc<[u8]>` instead of `Box<[u8]>` (`0012:28`). I accept the reason, not the type.** The architect is right that the table holds every value as an `Arc` so that D-18 (`free` during a running call) is safe. My `Box<[u8]>` proposal was about the bytes, not about the outer owner, and an `Arc` around them is correct. But `Arc<[u8]>` is not "a boxed slice inside the `Arc`" as `0012:28` says. It is one allocation that holds the reference counts and the bytes together, so building it from the writer's `Vec<u8>` allocates again and copies every byte. I measured this (see "What was run"). The fix is `Arc<Box<[u8]>>` or `Arc<Vec<u8>>`. See SEC-ADR-16.
+
+**SEC-ADR-12, writer enforcement stated as a requirement (`0012:26`) and the value only proposed (`0012:27`). I accept both.** The writer does not exist, so the ADR cannot promise how it grows its output. `0012:95` now says what is left if growth cannot be made fallible: an allocation failure inside the writer aborts the host. That is honest, and it is the correct residual for the owner to see. The value is the owner's to set under D-20, and I made the proposal myself.
+
+The other partial dispositions (`0011:24-27`, `0013:38-39`) move work to its owners (owner for rules files, devops for CI, interop for `c-abi.md`). I accept them. Each item stays open in the table below with its owner.
+
+### New findings
+
+#### SEC-ADR-16 (medium): `Arc<[u8]>` copies the whole output with an allocation that cannot fail gracefully
+
+- Evidence: `0012:14`, `0012:28`, `0012:90` (rule 3), `0013:170`. Stand-alone test (rustc 1.100.0, `-O`): `Arc::<[u8]>::from(Vec<u8>)` returns a data pointer that differs from the `Vec`'s, so the bytes were copied into a new allocation. `Arc::new(vec.into_boxed_slice())` keeps the same pointer. This matches the standard library design: `Arc<[T]>` stores the counts and the data in one block, so it cannot adopt the `Vec`'s buffer.
+- Problem: (1) The copy allocates up to `MAX_OUTPUT_BYTES` (1 GiB as proposed) through the normal, infallible path. Rule 8 (`0012:95`) reserves the final buffer with `try_reserve_exact` so that an out-of-memory condition returns a status. The `Arc<[u8]>` conversion right after it allocates the same size again and **aborts** on failure, so rule 8 has no effect. (2) Peak memory during `save` doubles. That is not counted by the byte budget (SEC-ADR-17). (3) `0013:170` says the bytes are "held as a boxed slice", which describes a different type.
+- Fix: store `Arc<Box<[u8]>>`, or `Arc<Vec<u8>>`. `Arc<Vec<u8>>` avoids every reallocation. `into_boxed_slice` may reallocate if the capacity exceeds the length, because `try_reserve_exact` may give more than asked. Spare capacity in an immutable `Vec` behind an `Arc` cannot grow or move the data, because no `&mut` exists while the buffer is shared. Either type keeps every property in rule 3. The `Arc` control block (a few dozen bytes) is still an infallible allocation, which is acceptable. Correct `0012:14`, `0012:28`, `0012:90` and `0013:170` to the chosen type. Add a test that the data pointer of the stored buffer equals the pointer of the writer's output, or simply that only one large allocation happens.
+- Owner: architect (text, before ADR-0012 acceptance), rust-core (code, FFI-001). Due 2026-12-14.
+
+#### SEC-ADR-17 (low): the byte budget rule leaves out in-flight memory and has no compile-time checks
+
+- Evidence: `0012:96` ("checked ... when a buffer is registered", "before it allocates the result where it can"); `0012:144`.
+- Problem: (1) The budget counts buffers that are already registered. A `save` serialises first and registers after, so the memory of serialisations in progress (and today the `Arc<[u8]>` copy) is outside the budget. With N concurrent `save` calls on different documents the peak is about the budget plus N times the output size. (2) Nothing ties the constants together: the budget must be at least `MAX_OUTPUT_BYTES` (or one maximum save can never succeed), and `MAX_OUTPUT_BYTES` must be at most `i32::MAX` (the reason given at `0012:94`). (3) `4 * (1 << 30)` does not fit a 32-bit `usize`. All Tier 1 targets are 64-bit (OQ-03) and the FFI crate is not built for `wasm32` (ADR-0009), so this is not reachable today. A `const` overflow is a compile error, not a wrap (from language knowledge; a 32-bit build was not run because the target is not installed).
+- Fix: (1) Either reserve budget before serialising (take `MAX_OUTPUT_BYTES`, or an estimate, under the buffer table lock and settle on registration), or state in ADR-0012 and `c-abi.md` that the budget bounds retained buffers only. Either choice is acceptable. The second needs only text. (2) Add `const _: () = assert!(MAX_OUTPUT_BYTES <= i32::MAX as usize);` and `const _: () = assert!(MAX_LIVE_BUFFER_BYTES >= MAX_OUTPUT_BYTES as u64);`. (3) Keep the budget as `u64`, or document that 32-bit FFI targets are not supported.
+- Owner: architect (text), rust-core (constants). Before FFI-001, no later than 2026-12-14.
+
+### Task 2: proposed values
+
+| Value | Proposed | My view | Reasoning |
+|---|---|---|---|
+| `MAX_LIVE_HANDLES` | 65 536 (`1 << 16`) per kind (D-20, `0013:102`) | **Agree** | This is my own proposal (D-19), now recorded by the owner. It turns a leaking wrapper into `LIMIT_EXCEEDED` long before the table is a memory problem. It does **not** bound document memory: one document can hold `MAX_PAGES` = 100 000 pages and a 4 KiB title, so 65 536 live documents can use far more than the table. `0013:304` says the total is the host's concern. That is a residual risk the owner should see. It is not a defect of this value |
+| Slot cap | `1 << 24` (`0013:103`), `const` assert at `0013:104` | **Agree** | It equals the index space, so no index can be truncated (SEC-ADR-01 rule 1). Worst-case table size is estimated at 2^24 slots times 16 bytes (documents) = 256 MiB, and 24 bytes for buffers with `Arc<[u8]>` (16 with SEC-ADR-16 applied). Not measured. Reaching the cap takes about 2^56 frees (see SEC-ADR-02), so in practice the cap guards correctness, not memory. `Vec` growth may reserve up to twice the length in capacity. That is harmless, because `try_reserve` fails cleanly |
+| `MAX_OUTPUT_BYTES` | `1 << 30` (`0012:94`) | **Agree** | 2^30 = 1 073 741 824 is below 2^31 − 1, so Go `C.int`, JNI `jint` and .NET array lengths cannot truncate it. Add the `i32::MAX` assertion (SEC-ADR-17). Not decided. The owner sets it |
+| Live-buffer byte budget | `4 * MAX_OUTPUT_BYTES` = 4 GiB (`0012:96`) | **Agree as a starting value**, with SEC-ADR-17 | It allows four maximum-size buffers, or many small ones, and keeps 65 536 × 1 GiB = 64 TiB out of reach. It bounds retained buffers only, not in-flight serialisation (SEC-ADR-17). A server host may want it lower. A later setter that may only lower the value would be a safe addition. Not decided. The owner sets it |
+
+### Task 3: checks
+
+See "What was run" and "What was NOT run" above. In short: fmt, clippy and tests pass locally at `ffa10a6` (23 tests: 8 core, 15 FFI). `cargo deny check` passes. CI is green at `9acbb60` and earlier. The last two commits have not run in CI. Miri, `cargo audit`, release-mode tests, other platforms and any C caller were not run locally.
+
+### Condition C-1 (from `docs/reviews/gate-1-security.md`)
+
+C-1 asks for SEC-F-01 and SEC-F-02 fixed with tests, the commit and test names, and a review by security. The previous re-review (2026-11-23) said it needed the commit, SEC-F-20 fixed, and the commit hash recorded.
+
+| Part | Evidence |
+|---|---|
+| SEC-F-01 fix committed | `eeed518` (`lib.rs:230-232` at HEAD: `len > isize::MAX` returns `INVALID_ARGUMENT` before the slice is built; compile-time check `MAX_TITLE_BYTES <= isize::MAX` at `lib.rs:37`). The test bodies are unchanged in `4a0751b` (`git diff eeed518 HEAD` removes comment lines only) |
+| SEC-F-01 tests | `set_title_rejects_len_usize_max_without_reading`, `set_title_rejects_len_just_over_isize_max_without_reading`, `set_title_rejects_len_isize_max_as_limit_without_reading`, plus `set_title_null_utf8_with_huge_len_is_null_pointer` (new in `4a0751b`). All pass locally. The first three passed under Miri in CI run 45103722429, which checks the order of the checks in any build mode |
+| SEC-F-02 fix committed | `eeed518` (`model.rs:11` constant, `model.rs:87` `set_title`, `lib.rs:233-234`); documentation in `4a0751b` (`c-abi.md:67-82`, `mkpdf.h:25-26` and `45-57`, `rust-api.md:13` and `30`, `CHANGELOG.md:16-22`) |
+| SEC-F-02 tests | Core: `title_at_limit_is_accepted`, `title_over_limit_is_rejected_and_old_title_kept`, `title_limit_counts_bytes_not_chars`. FFI: `set_title_over_limit_is_rejected_and_keeps_previous_title`, `set_title_at_limit_is_accepted`, `set_title_failures_keep_previous_title`. All pass locally |
+| SEC-F-20 | Fixed in `4a0751b` except two small items: the rustdoc of `MAX_TITLE_BYTES` still points to T-10 instead of T-04 (`model.rs:10-11`), and no test compares `MKPDF_MAX_TITLE_BYTES` in the header with the Rust constant. Threat model T-04 and T-19 are corrected by this review. Neither remaining item affects the limit or what callers are told |
+| Review by security | This section |
+
+**C-1 is met**, as of `4a0751b`, for the purpose it serves (FFI-001 may merge as far as C-1 is concerned). Caveats, none of which blocks it: `4a0751b` is not pushed and has not run in CI; allocation failure elsewhere still aborts (T-04 stays "Partly mitigated"); the release-mode order of checks is proven by Miri, not by `cargo test` (mutation M1). The SEC-F-01 and SEC-F-02 rows in the GATE-1 findings table still say "not committed". I was asked to change only SEC-F-19 to SEC-F-21 there, so those two rows are left for the owner to approve an update.
+
+### Task 4: recommendations to the owner
+
+| ADR | Recommendation | Conditions |
+|---|---|---|
+| ADR-0011 panic strategy | **Accept** | No text change needed for security. The required work (the `compile_error!`, the expected-failure `panic=abort` CI job, the release-`cdylib` panic test through a real export, the `nm` symbol check, `guard` scope per item 7) is implementation. It is tracked by C-2 and must be done before v0.1.0. The owner also decides on the two proposed rules-file lines (`0011:117`) |
+| ADR-0012 output buffers | **Accept with changes** | (1) SEC-ADR-16: change the storage type and the four lines that name it. (2) SEC-ADR-17: state what the budget bounds and add the two `const` assertions. (3) The owner sets `MAX_OUTPUT_BYTES` and the budget (I support `1 << 30` and 4 GiB). It can only be accepted after ADR-0013 (`0012:5`) |
+| ADR-0013 handles | **Accept with one change** | Correct `0013:170` ("`Arc<[u8]>` ... held as a boxed slice") to the type chosen for SEC-ADR-16. That is one sentence. Everything I asked for in SEC-ADR-01 to 05, 14 and 15 is in the text. Implementation (FFI-003b), the 17 tests in section 12 and a Miri run with threads are needed before T-03 may move to "Tested" |
+
+### Open items after this re-review
+
+| ID | Sev | What remains | Owner | Due |
+|---|---|---|---|---|
+| SEC-ADR-16 | medium | `Arc<[u8]>` copy undoes `try_reserve_exact`. Change the type in `0012` and `0013:170` | architect, rust-core | Before ADR-0012 acceptance; ≤ 2026-12-14 |
+| SEC-ADR-17 | low | Budget scope (in-flight memory) and `const` assertions | architect, rust-core | Before FFI-001; ≤ 2026-12-14 |
+| SEC-ADR-12 | medium | Owner sets `MAX_OUTPUT_BYTES`; the writer enforces it during growth | owner, PDF-001 | Before FFI-001 |
+| SEC-ADR-05 | medium | Owner sets the byte budget | owner | Before FFI-001 |
+| SEC-ADR-09 | low | Sequencing rule not in `docs/roadmap.md` | orchestrator | Now |
+| SEC-ADR-04, 14, 15 | low | Sentences in `docs/api/c-abi.md` | interop | With FFI-003b; SEC-ADR-14 before the first SDK |
+| SEC-ADR-03 | — | `clear_poison` `disallowed-methods` entry | rust-core or devops | With FFI-003b |
+| SEC-ADR-06, 07, 08 | — | CI jobs, release-artefact test, symbol check, `C-unwind` check, two rules-file lines | devops, rust-core, owner | Before v0.1.0 (C-2) |
+| All | — | No design is implemented or tested. Each finding marked "Resolved (text)" is re-checked against code and a Miri log when FFI-003b and FFI-001 exist | security | Next review |
+
+### Risk acceptance
+
+None. This re-review accepts no ADR and no risk, and none was asked for. No critical or high finding exists, so nothing is escalated.
