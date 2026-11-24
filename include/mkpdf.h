@@ -22,6 +22,9 @@ extern "C" {
 #define MKPDF_ERR_LIMIT_EXCEEDED 4
 #define MKPDF_ERR_INTERNAL 100
 
+/* Maximum title length for mkpdf_document_set_title, in UTF-8 bytes. */
+#define MKPDF_MAX_TITLE_BYTES 4096u
+
 /* Opaque document handle. Free exactly once with mkpdf_document_free. */
 typedef struct MkpdfDocument MkpdfDocument;
 
@@ -39,7 +42,19 @@ int32_t mkpdf_document_new(MkpdfDocument **out);
 /* NULL is a no-op. */
 void mkpdf_document_free(MkpdfDocument *doc);
 
-/* utf8 may be NULL only when len is 0. No NUL terminator required. */
+/*
+ * Title: at most MKPDF_MAX_TITLE_BYTES bytes of UTF-8 (bytes, not characters). No NUL
+ * terminator required. An interior NUL is accepted. utf8 may be NULL only when len is 0.
+ * Checks, first failure wins:
+ *   1. doc NULL                     -> MKPDF_ERR_NULL_POINTER
+ *   2. len == 0                     -> MKPDF_OK (empty title, utf8 not used)
+ *   3. utf8 NULL and len > 0        -> MKPDF_ERR_NULL_POINTER (before any length check)
+ *   4. len > PTRDIFF_MAX            -> MKPDF_ERR_INVALID_ARGUMENT
+ *   5. len > MKPDF_MAX_TITLE_BYTES  -> MKPDF_ERR_LIMIT_EXCEEDED
+ *   6. not valid UTF-8              -> MKPDF_ERR_INVALID_UTF8
+ * Steps 4 and 5 read no bytes. On any failure the previous title is kept.
+ * Otherwise utf8 must point to len initialised bytes in one allocation, unmodified during the call.
+ */
 int32_t mkpdf_document_set_title(MkpdfDocument *doc, const char *utf8, size_t len);
 
 /* out_index may be NULL. */

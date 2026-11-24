@@ -10,7 +10,7 @@ Owns pages and metadata.
 | Item | Signature | Notes |
 |---|---|---|
 | `new` | `fn new() -> Document` | Empty. Also `Default` |
-| `set_title` | `fn set_title(&mut self, impl Into<String>)` | Any Unicode string |
+| `set_title` | `fn set_title(&mut self, impl AsRef<str>) -> Result<(), Error>` | A UTF-8 string of at most `MAX_TITLE_BYTES` bytes. `LimitExceeded` when longer, and the previous title is kept |
 | `title` | `fn title(&self) -> Option<&str>` | |
 | `add_page` | `fn add_page(&mut self, Page) -> Result<usize, Error>` | Returns the zero-based index. `LimitExceeded` past `MAX_PAGES` |
 | `page_count` | `fn page_count(&self) -> usize` | |
@@ -27,7 +27,7 @@ Owns pages and metadata.
 `ErrorKind` is `#[non_exhaustive]`: `InvalidArgument`, `LimitExceeded`. `Error::kind()` is the contract. `Error::message()` is for people.
 
 ### Constants
-`MAX_PAGES` = 100 000. `MAX_PAGE_DIMENSION_PT` = 14 400.0. `VERSION`.
+`MAX_PAGES` = 100 000. `MAX_TITLE_BYTES` = 4096. `MAX_PAGE_DIMENSION_PT` = 14 400.0. `VERSION`.
 
 ## Guarantees
 

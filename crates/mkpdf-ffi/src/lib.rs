@@ -33,6 +33,9 @@ pub const MKPDF_ERR_LIMIT_EXCEEDED: i32 = 4;
 /// An internal panic was caught at the boundary. Indicates a bug.
 pub const MKPDF_ERR_INTERNAL: i32 = 100;
 
+// `set_title` relies on this when it builds a slice of at most `MAX_TITLE_BYTES` bytes.
+const _: () = assert!(MAX_TITLE_BYTES <= isize::MAX as usize);
+
 /// Opaque document handle.
 pub struct MkpdfDocument {
     inner: Document,
@@ -190,11 +193,27 @@ pub unsafe extern "C" fn mkpdf_document_free(doc: *mut MkpdfDocument) {
 
 /// Sets the document title from `len` bytes of UTF-8 at `utf8`. No NUL terminator required.
 ///
+/// The title is at most `MAX_TITLE_BYTES` (4096) bytes of UTF-8. It may contain U+0000.
+///
+/// Checks run in this order, and the first failure wins:
+/// 1. `doc` null: `MKPDF_ERR_NULL_POINTER`.
+/// 2. `len == 0`: the title becomes the empty string, `utf8` is not used (it may be null).
+/// 3. `utf8` null with `len > 0`: `MKPDF_ERR_NULL_POINTER`. This comes before any length check,
+///    so a null `utf8` with a huge `len` returns `NULL_POINTER`.
+/// 4. `len > isize::MAX`: `MKPDF_ERR_INVALID_ARGUMENT`, before any byte is read.
+/// 5. `len > MAX_TITLE_BYTES`: `MKPDF_ERR_LIMIT_EXCEEDED`, before any byte is read.
+/// 6. Bytes not valid UTF-8: `MKPDF_ERR_INVALID_UTF8`.
+///
+/// On any failure the previous title is kept.
+///
 /// # Safety
-/// `doc` must be a live handle. `utf8` must be readable for `len` bytes (it may be null only
-/// when `len` is 0). A `len` above `isize::MAX` is rejected with `MKPDF_ERR_INVALID_ARGUMENT`,
-/// and a `len` above `MAX_TITLE_BYTES` with `MKPDF_ERR_LIMIT_EXCEEDED`, in both cases before
-/// any byte is read. On any failure the previous title is kept.
+/// - `doc` must be a live handle from `mkpdf_document_new`, and the caller must have exclusive
+///   access to it for the duration of the call.
+/// - If `len > 0`, `utf8` must point to `len` bytes that are initialised, lie in a single
+///   allocated object, and are not modified (by any thread) during the call. When `len` is
+///   above `MAX_TITLE_BYTES` no byte is read, so this condition does not apply to such a call.
+/// - `utf8` may be null only when `len` is 0. A null `utf8` with `len > 0` is reported as
+///   `MKPDF_ERR_NULL_POINTER`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn mkpdf_document_set_title(
     doc: *mut MkpdfDocument,
@@ -214,10 +233,12 @@ pub unsafe extern "C" fn mkpdf_document_set_title(
         } else if len > MAX_TITLE_BYTES {
             return Err(Failure::LimitExceeded("title exceeds the maximum length"));
         } else {
-            // SAFETY: `utf8` is non-null, and the caller guarantees it is readable for `len`
-            // bytes. The checks above ensure `len <= MAX_TITLE_BYTES`, which is below
-            // `isize::MAX`, so the slice size is valid. The bytes are only read and the
-            // slice does not outlive this call.
+            // SAFETY: `utf8` is non-null (checked above). The caller guarantees (see `# Safety`)
+            // that it points to `len` initialised bytes in one allocation, and that they are
+            // not modified during this call. `u8` needs no alignment. The checks above
+            // ensure `0 < len <= MAX_TITLE_BYTES`, and `MAX_TITLE_BYTES <= isize::MAX` is
+            // checked at compile time, so the slice size is valid. The bytes are only read,
+            // and the slice does not outlive this call.
             unsafe { std::slice::from_raw_parts(utf8.cast::<u8>(), len) }
         };
         let title = std::str::from_utf8(bytes).map_err(|_| Failure::InvalidUtf8)?;
@@ -380,7 +401,9 @@ mod tests {
     }
 
     /// Calls `set_title` with a real buffer but a hostile `len`. The buffer is far smaller than
-    /// `len`, so the test only passes if the length check runs before any slice is built.
+    /// `len`. If a slice were built before the length checks, the standard library's debug UB
+    /// checks would abort the test binary (debug builds only), and Miri would report it in any
+    /// build. A release-mode `cargo test` does not prove the order.
     fn set_title_with_len(doc: *mut MkpdfDocument, len: usize) -> i32 {
         let secret = b"SECRET-INPUT";
         // SAFETY: `doc` is live. `len` is deliberately larger than the buffer, and the function
@@ -481,6 +504,65 @@ mod tests {
         assert_title_unchanged(doc, "before");
         // SAFETY: `doc` is live and freed once.
         unsafe { mkpdf_document_free(doc) };
+    }
+
+    #[test]
+    fn set_title_null_utf8_with_huge_len_is_null_pointer() {
+        let doc = new_doc_with_title("before");
+        // SAFETY: `doc` is live. A null `utf8` with `len > 0` is rejected before any read.
+        unsafe {
+            assert_eq!(
+                mkpdf_document_set_title(doc, ptr::null(), usize::MAX),
+                MKPDF_ERR_NULL_POINTER
+            );
+            assert!(last_error().unwrap().contains("utf8"));
+            assert_eq!(
+                mkpdf_document_set_title(ptr::null_mut(), ptr::null(), usize::MAX),
+                MKPDF_ERR_NULL_POINTER
+            );
+            assert!(last_error().unwrap().contains("doc"));
+        }
+        assert_title_unchanged(doc, "before");
+        // SAFETY: `doc` is live and freed once.
+        unsafe { mkpdf_document_free(doc) };
+    }
+
+    #[test]
+    fn set_title_accepts_interior_nul() {
+        let doc = new_doc_with_title("before");
+        let title = "a\0b";
+        // SAFETY: `doc` is live and `title` is readable for its length.
+        let code = unsafe { mkpdf_document_set_title(doc, title.as_ptr().cast(), title.len()) };
+        assert_eq!(code, MKPDF_OK);
+        assert!(last_error().is_none());
+        assert_title_unchanged(doc, "a\0b");
+        // SAFETY: `doc` is live and freed once.
+        unsafe { mkpdf_document_free(doc) };
+    }
+
+    #[test]
+    fn max_pages_is_enforced_through_ffi() {
+        let mut doc = ptr::null_mut();
+        // SAFETY: `doc` is writable, and the handle is live until the free at the end.
+        unsafe {
+            assert_eq!(mkpdf_document_new(&raw mut doc), MKPDF_OK);
+            for _ in 0..mkpdf_core::MAX_PAGES {
+                assert_eq!(
+                    mkpdf_document_add_page(doc, 10.0, 10.0, ptr::null_mut()),
+                    MKPDF_OK
+                );
+            }
+            let mut index = 12345usize;
+            assert_eq!(
+                mkpdf_document_add_page(doc, 10.0, 10.0, &raw mut index),
+                MKPDF_ERR_LIMIT_EXCEEDED
+            );
+            assert_eq!(index, 12345, "out_index must be untouched on failure");
+            let mut n = 0usize;
+            assert_eq!(mkpdf_document_page_count(doc, &raw mut n), MKPDF_OK);
+            assert_eq!(n, mkpdf_core::MAX_PAGES);
+            mkpdf_document_free(doc);
+        }
     }
 
     #[test]

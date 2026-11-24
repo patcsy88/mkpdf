@@ -60,14 +60,31 @@ This catching relies on the `panic = "unwind"` setting. It is not yet pinned or 
 | `const char *mkpdf_last_error_message(void)` | Last error on this thread, or `NULL` |
 | `int32_t mkpdf_document_new(MkpdfDocument **out)` | Create an empty document |
 | `void mkpdf_document_free(MkpdfDocument *doc)` | Release it |
-| `int32_t mkpdf_document_set_title(MkpdfDocument *doc, const char *utf8, size_t len)` | Set the title |
+| `int32_t mkpdf_document_set_title(MkpdfDocument *doc, const char *utf8, size_t len)` | Set the title. See "Title limit" below |
 | `int32_t mkpdf_document_add_page(MkpdfDocument *doc, double w, double h, size_t *out_index)` | Append a page. `out_index` may be `NULL` |
 | `int32_t mkpdf_document_page_count(const MkpdfDocument *doc, size_t *out_count)` | Number of pages |
 
+## Title limit (`mkpdf_document_set_title`)
+
+The title is at most **4096 bytes** of UTF-8 (`MKPDF_MAX_TITLE_BYTES`, `MAX_TITLE_BYTES` in the core). The limit counts bytes, not characters. A title of exactly 4096 bytes is accepted. The title may contain U+0000 (an interior NUL); the library does not reject it.
+
+Checks run in this order, and the first failure decides the status:
+
+| Order | Condition | Status |
+|---|---|---|
+| 1 | `doc` is `NULL` | `MKPDF_ERR_NULL_POINTER` |
+| 2 | `len == 0` | `MKPDF_OK`. The title becomes empty. `utf8` is not used and may be `NULL` |
+| 3 | `utf8` is `NULL` and `len > 0` | `MKPDF_ERR_NULL_POINTER`. This comes before the length checks, so a `NULL` `utf8` with a huge `len` returns this status |
+| 4 | `len > isize::MAX` (`PTRDIFF_MAX`) | `MKPDF_ERR_INVALID_ARGUMENT` |
+| 5 | `len > 4096` | `MKPDF_ERR_LIMIT_EXCEEDED` |
+| 6 | Bytes are not valid UTF-8 | `MKPDF_ERR_INVALID_UTF8` |
+
+Steps 4 and 5 run before any byte at `utf8` is read, so the caller does not need to provide readable memory for an over-long `len`. The error text is a fixed string and never contains the input. On any failure the previous title is kept. For a successful call with `len > 0`, `utf8` must point to `len` initialised bytes in one allocation, and no thread may modify them during the call. Wrappers should reject a longer title before the call, and must not truncate in the middle of a UTF-8 sequence.
+
 ## Not yet specified
 
-Serialisation to a caller buffer or callback (FFI-001), content, fonts and images. The output-buffer ownership model (library-allocated buffer with `mkpdf_buffer_free`, or caller-supplied) must be settled before FFI-001, and written as an ADR.
+Serialisation (FFI-001), content, fonts and images. No function returns output yet. ADR-0012 (Proposed, not accepted) proposes a library-allocated buffer, reached through a token and released with `mkpdf_buffer_free`. No callback or caller-supplied buffer is proposed. ADR-0013 (Proposed) changes every handle to a `uint64_t` token. None of this is in the header or the code.
 
 ## Header status
 
-`include/mkpdf.h` is **written by hand** for now, because `cbindgen` is not installed here. CI must generate the header and compare it with the committed copy (FFI-001).
+`include/mkpdf.h` is **written by hand** for now. `cbindgen` 0.29.4 is installed locally and was run once to compare, but no CI job generates the header and compares it with the committed copy yet (FFI-001, ARCH-F-17 problem 2).
